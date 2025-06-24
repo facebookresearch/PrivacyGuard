@@ -307,7 +307,10 @@ class AnalysisNode(BaseAnalysisNode):
                     )
                 ],
             ).compute_metrics_at_error_threshold(
-                self._delta, error_threshold=error_thresholds, verbose=False
+                self._delta,
+                error_threshold=error_thresholds,
+                cap_eps=self._cap_eps,
+                verbose=False,
             )
             for _ in tqdm(
                 range(self._num_bootstrap_resampling_times),
