@@ -235,6 +235,7 @@ class MIAResults:
         delta: float,
         # pyre-fixme[24]: Generic type `np.ndarray` expects 2 type parameters.
         error_threshold: np.ndarray,
+        cap_eps: bool = True,
         verbose: bool = False,
     ) -> tuple[np.float64, np.float64, list[np.float64], list[np.float64]]:
         """
@@ -258,10 +259,11 @@ class MIAResults:
             eps1 = np.log(1 - fnr - delta) - np.log(fpr)
             eps2 = np.log(tnr - delta) - np.log(fnr)
 
-        # filter out extreme values in eps1 and eps2
-        eps_ub = np.log(self._scores_train.shape[0])
-        eps1[eps1 > eps_ub] = 0.0
-        eps2[eps2 > eps_ub] = 0.0
+        if cap_eps:
+            # filter out extreme values in eps1 and eps2
+            eps_ub = np.log(self._scores_train.shape[0])
+            eps1[eps1 > eps_ub] = eps_ub
+            eps2[eps2 > eps_ub] = eps_ub
 
         eps_fpr_array = []
         eps_max_array = []

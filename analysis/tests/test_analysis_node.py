@@ -61,7 +61,7 @@ class TestAnalysisNode(unittest.TestCase):
 
         self.score_analysis_node = ScoreAnalysisNode(analysis_input=self.analysis_input)
 
-        # Bengn setting where the test and train scores are sepearable
+        # Benign setting where the test and train scores are separable
         separable_df_train = pd.DataFrame({"score": np.array([0.1, 0.1]).reshape(-1)})
         separable_df_test = pd.DataFrame({"score": np.array([0, 0]).reshape(-1)})
         self.separable_base_analysis_input = BaseAnalysisInput(
@@ -141,9 +141,14 @@ class TestAnalysisNode(unittest.TestCase):
         )  # max eps over all TPR thresholds, should be log(2) ~ 0.693
         assert abs(eps_tpr_ub - np.log(2)) < 1e-6
 
+        eps_fpr_ub = max(
+            outputs["eps_fpr_ub"]
+        )  # max eps over all FPR thresholds, should be log(2) ~ 0.693
+        assert abs(eps_fpr_ub - np.log(2)) < 1e-6
+
     def test_turn_cap_eps_off(self) -> None:
         """
-        Tests capping of computed epsilons. Under cap_eps=False and a seprable setting with two users, the max eps should be inf.
+        Tests capping of computed epsilons. Under cap_eps=False and a separable setting with two users, the max eps should be inf.
         """
         analysis_node = AnalysisNode(
             self.separable_base_analysis_input,
@@ -156,6 +161,12 @@ class TestAnalysisNode(unittest.TestCase):
             outputs["eps_tpr_ub"]
         )  # max eps over all TPR thresholds, should be inf
         assert eps_tpr_ub == float("inf")
+
+        eps_fpr_ub = max(
+            outputs["eps_fpr_ub"]
+        )  # max eps over all FPR thresholds, should be inf
+        print(outputs["eps_tpr_ub"], outputs["eps_fpr_ub"])
+        assert eps_fpr_ub == float("inf")
 
     def test_num_bootstrap_resampling(self) -> None:
         """
