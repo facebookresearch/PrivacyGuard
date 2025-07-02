@@ -2,7 +2,7 @@
 
 # pyre-strict
 
-from typing import List, Optional
+from typing import List
 
 import numpy as np
 import pandas as pd
@@ -45,7 +45,7 @@ class CalibAttack(BaseAttack):
         row_aggregation: AggregationType,
         should_calibrate_scores: bool,
         score_type: CalibScoreType,
-        merge_columns: list[str] | None = None,
+        merge_columns: List[str] | None = None,
     ) -> None:
         """
         args:
@@ -71,7 +71,7 @@ class CalibAttack(BaseAttack):
 
         self.score_type = score_type
 
-        self.merge_columns: list[str] = merge_columns or self.ADS_MERGE_COLUMNS
+        self.merge_columns: List[str] = merge_columns or self.ADS_MERGE_COLUMNS
 
         for column in self.merge_columns:
             for columns in [

@@ -79,3 +79,28 @@ class TestCalibAttack(unittest.TestCase):
             [-1.26651961, 2.09382253, -1.10638714, 4.9806934, 5.47093052],
             decimal=7,
         )
+
+    def test_column_validation(self) -> None:
+        """Test that an IndexError is raised when a required column is missing."""
+        # Create a dataframe missing one of the required columns
+        df_missing_column = self.df_hold_out_train.drop(
+            columns=["impression_signature"]
+        )
+
+        # Verify that an IndexError is raised when trying to create a CalibAttack instance
+        with self.assertRaises(IndexError) as context:
+            CalibAttack(
+                df_hold_out_train=df_missing_column,
+                df_hold_out_test=self.df_hold_out_train,
+                df_hold_out_train_calib=self.df_hold_out_train,
+                df_hold_out_test_calib=self.df_hold_out_train,
+                row_aggregation=AggregationType.MAX,
+                should_calibrate_scores=False,
+                score_type=CalibScoreType.LOSS,
+            )
+
+        # Verify the error message
+        self.assertIn(
+            "column impression_signature not found in input dataframe(s)",
+            str(context.exception),
+        )
