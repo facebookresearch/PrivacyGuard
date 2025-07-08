@@ -26,6 +26,9 @@ class FDPAnalysisNodeOutput(BaseAnalysisOutput):
 class FDPAnalysisNode(BaseAnalysisNode):
     def __init__(
         self,
+        m: int,
+        c: int,
+        c_cap: int,
         target_noise: float = 0.001,
         threshold: float = 0.05,
         k: int = 2,
@@ -34,6 +37,9 @@ class FDPAnalysisNode(BaseAnalysisNode):
         """
         Class to implement the FDP analysis in "Auditing f -Differential Privacy in One Run" (https://arxiv.org/abs/2410.22235)
 
+        :param m: Total number of canaries.
+        :param c: Number of correct guesses.
+        :param c_cap: Number of total guesses.
         :param target_noise: Initial noise level for candidate noises.
         :param threshold: Probability threshold value for auditing.
         :param k: alphabet size (k=2 for membership inference attacks).
@@ -50,6 +56,10 @@ class FDPAnalysisNode(BaseAnalysisNode):
         self.threshold = threshold
         self.delta = delta
         self.k = k
+
+        self.m = m
+        self.c = c
+        self.c_cap = c_cap
 
     @staticmethod
     def gaussianDP_blow_up_function(noise: float) -> Callable[[float], float]:
@@ -165,7 +175,7 @@ class FDPAnalysisNode(BaseAnalysisNode):
 
         return r[0] + h[0] <= c_cap / m
 
-    def run_analysis(
+    def run_analysis_with_parameters(
         self,
         m: int,
         c: int,
@@ -198,3 +208,13 @@ class FDPAnalysisNode(BaseAnalysisNode):
         empirical_eps = self.calculate_epsilon_gaussian(empirical_noise)
         output = FDPAnalysisNodeOutput(eps=empirical_eps)
         return output
+
+    def run_analysis(
+        self,
+    ) -> FDPAnalysisNodeOutput:
+        """
+        Runs analysis with default parameter arguments.
+
+        :return: Calculated epsilon value.
+        """
+        return self.run_analysis_with_parameters(m=self.m, c=self.c, c_cap=self.c_cap)
