@@ -18,12 +18,15 @@ class TestFDPAnalysisNode(unittest.TestCase):
     def setUp(self) -> None:
         """Set up test instances with different parameters."""
         # Create analysis nodes with different parameters
-        self.default_node = FDPAnalysisNode()
+        self.default_node = FDPAnalysisNode(m=1000, c=500, c_cap=800)
         self.custom_node = FDPAnalysisNode(
             target_noise=0.5,
             threshold=0.1,
             k=3,
             delta=1e-8,
+            m=1000,
+            c=500,
+            c_cap=800,
         )
         super().setUp()
 
@@ -203,13 +206,9 @@ class TestFDPAnalysisNode(unittest.TestCase):
 
     def test_run_analysis(self) -> None:
         """Test the run_analysis method."""
-        # Test parameters
-        m = 1000
-        c = 500
-        c_cap = 800
 
-        # Run the analysis
-        output = self.default_node.run_analysis(m, c, c_cap)
+        # Run the analysis (default args are m=1000, c=500, c_cap=800)
+        output = self.default_node.run_analysis()
 
         # Verify the output type
         self.assertIsInstance(output, FDPAnalysisNodeOutput)
@@ -224,12 +223,12 @@ class TestFDPAnalysisNode(unittest.TestCase):
         c = 1000
         c_cap = 1500
 
-        output = self.default_node.run_analysis(m, c, c_cap)
+        output = self.default_node.run_analysis_with_parameters(m=m, c=c, c_cap=c_cap)
         self.assertIsInstance(output, FDPAnalysisNodeOutput)
         self.assertGreater(output.eps, 0)
 
         # Test with custom node
-        output = self.custom_node.run_analysis(m, c, c_cap)
+        output = self.custom_node.run_analysis_with_parameters(m=m, c=c, c_cap=c_cap)
         self.assertIsInstance(output, FDPAnalysisNodeOutput)
         self.assertGreater(output.eps, 0)
 
@@ -242,7 +241,7 @@ class TestFDPAnalysisNode(unittest.TestCase):
 
         # Verify that an assertion error is raised
         with self.assertRaises(AssertionError):
-            self.default_node.run_analysis(m, c, c_cap)
+            self.default_node.run_analysis_with_parameters(m, c, c_cap)
 
         # Test parameters where c_cap > m
         m = 100
@@ -251,7 +250,7 @@ class TestFDPAnalysisNode(unittest.TestCase):
 
         # Verify that an assertion error is raised
         with self.assertRaises(AssertionError):
-            self.default_node.run_analysis(m, c, c_cap)
+            self.default_node.run_analysis_with_parameters(m, c, c_cap)
 
     def test_output_to_dict(self) -> None:
         """Test that the output can be converted to a dictionary."""
@@ -260,7 +259,7 @@ class TestFDPAnalysisNode(unittest.TestCase):
         c = 500
         c_cap = 800
 
-        output = self.default_node.run_analysis(m, c, c_cap)
+        output = self.default_node.run_analysis_with_parameters(m=m, c=c, c_cap=c_cap)
 
         # Convert to dictionary
         output_dict = output.to_dict()
