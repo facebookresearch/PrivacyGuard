@@ -11,6 +11,7 @@ from typing import List
 
 import numpy as np
 import torch
+from numpy.typing import NDArray
 from privacy_guard.analysis.base_analysis_input import BaseAnalysisInput
 from privacy_guard.analysis.base_analysis_node import BaseAnalysisNode
 from privacy_guard.analysis.base_analysis_output import BaseAnalysisOutput
@@ -319,10 +320,7 @@ class AnalysisNode(BaseAnalysisNode):
         ]
         return metrics_array
 
-    def _make_eps_tpr_array(
-        self,
-        # pyre-fixme[24]: Generic type `np.ndarray` expects 2 type parameters.
-    ) -> np.ndarray:
+    def _make_eps_tpr_array(self) -> NDArray[float]:
         """
         Make list of epsilon at TPR threshold values
         Returns:

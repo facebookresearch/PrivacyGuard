@@ -80,6 +80,6 @@ def compute_and_merge_outputs(nodes: list[AnalysisNodeType]) -> dict[str, Any]:
                 + str(overwritten_keys)
             )
 
-        outputs.update(node.compute_outputs())
+        outputs.update(new_outputs)
 
     return outputs
