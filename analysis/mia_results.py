@@ -5,6 +5,7 @@ import logging
 
 import numpy as np
 import torch
+from numpy.typing import NDArray
 from scipy.stats import beta
 from sklearn.metrics import auc, roc_curve
 
@@ -28,6 +29,47 @@ class MIAResults:
 
         self._scores_train = scores_train
         self._scores_test = scores_test
+
+    def _get_indices_of_error_at_thresholds(
+        self,
+        error_rates: NDArray[float],
+        error_thresholds: NDArray[float],
+        error_type: str,
+    ) -> NDArray[int]:
+        """
+        Get indices where error values are greater/smaller than error thresholds.
+        Assumes that error_rates is sorted in increasing order for error_type = "tpr" and "fpr"
+        and sorted in decreasing order for error_type = "tnr" and "fnr"
+        """
+
+        # find rightmost index where tpr >= threshold
+        if error_type == "tpr":
+            return np.minimum(
+                np.searchsorted(error_rates, error_thresholds, side="left"),
+                len(error_rates) - 1,
+            )
+        # find leftmost index where fpr <= threshold
+        elif error_type == "fpr":
+            return np.maximum(
+                0, np.searchsorted(error_rates, error_thresholds, side="right") - 1
+            )
+        # find leftmost index where fnr <= threshold
+        # search on tpr array instead since tpr has increasing order and fnr = 1 - tpr
+        elif error_type == "fnr":
+            return np.minimum(
+                np.searchsorted(1.0 - error_rates, 1.0 - error_thresholds, side="left"),
+                len(error_rates) - 1,
+            )
+        # find rightmost index where tnr >= threshold
+        # search on fpr array instead since fpr has increasing order and tnr = 1 - fpr
+        elif error_type == "tnr":
+            return np.maximum(
+                0,
+                np.searchsorted(1.0 - error_rates, 1.0 - error_thresholds, side="right")
+                - 1,
+            )
+        else:
+            raise ValueError(f"Invalid error type: {error_type}")
 
     def get_tpr_fpr(self) -> tuple[torch.Tensor, torch.Tensor]:
         """
@@ -77,7 +119,7 @@ class MIAResults:
         return accuracy, auc_value, emp_eps
 
     def compute_epsilon_at_error_thresholds(
-        self, delta: float, error_thresholds: list[float]
+        self, delta: float, error_thresholds: NDArray[float]
     ) -> tuple[list[float], list[float]]:
         """
         Compute epsilons at error threshold for MIA attack
@@ -86,10 +128,8 @@ class MIAResults:
         assert len(error_thresholds) > 1
 
         _tpr, _fpr = self.get_tpr_fpr()
-        # pyre-fixme[24]: Generic type `np.ndarray` expects 2 type parameters.
-        tpr: np.ndarray = _tpr.numpy()
-        # pyre-fixme[24]: Generic type `np.ndarray` expects 2 type parameters.
-        fpr: np.ndarray = _fpr.numpy()
+        tpr: NDArray[float] = _tpr.numpy()
+        fpr: NDArray[float] = _fpr.numpy()
 
         fnr = 1 - tpr
         tnr = 1 - fpr
@@ -112,32 +152,22 @@ class MIAResults:
         tpr_array = []
         tnr_array = []
 
-        for threshold in error_thresholds:
-            if fpr.min() > threshold:
-                # no epsilon value at this threshold
-                tpr_level = eps_fpr = 0
-            else:
-                fpr_idxes = np.where(fpr <= threshold)
-                if len(fpr_idxes) == 0:
-                    continue
-                # take the last index where fpr <= threshold
-                fpr_idx = fpr_idxes[0][-1]
-                # add the tpr and fnr epsilon to outputs
-                tpr_level = tpr[fpr_idx]
-                eps_fpr = eps1[fpr_idx]
+        fpr_indices = self._get_indices_of_error_at_thresholds(
+            fpr, error_thresholds, "fpr"
+        )
+        fnr_indices = self._get_indices_of_error_at_thresholds(
+            fnr, error_thresholds, "fnr"
+        )
+        for i in range(len(error_thresholds)):
+            fpr_idx = fpr_indices[i]
+            # add the tpr and fpr epsilon to outputs
+            tpr_level = tpr[fpr_idx]
+            eps_fpr = eps1[fpr_idx]
 
-            if fnr.min() > threshold:
-                # no epsilon value at this threshold
-                tnr_level = eps_fnr = 0
-            else:
-                fnr_idxes = np.where(fnr <= threshold)
-                if len(fnr_idxes) == 0:
-                    continue
-                # take the first index where fnr <= threshold
-                fnr_idx = fnr_idxes[0][0]
-                # add the tnr and tnr epsilon to outputs
-                tnr_level = tnr[fnr_idx]
-                eps_fnr = eps2[fnr_idx]
+            fnr_idx = fnr_indices[i]
+            # add the tnr and frn epsilon to outputs
+            tnr_level = tnr[fnr_idx]
+            eps_fnr = eps2[fnr_idx]
 
             tpr_array.append(tpr_level)
             tnr_array.append(tnr_level)
@@ -183,7 +213,10 @@ class MIAResults:
         if max_r1 > max_r2:
             idx = np.argmax(r1)
             max_r = max_r1
-            fpr_idx = np.where(fpr <= 0.001)[0][-1]
+            # find rightmost index where fpr <= 0.001 (fpr sorted in increasing order)
+            fpr_idx = self._get_indices_of_error_at_thresholds(
+                fpr, np.array([0.001]), "fpr"
+            )[0]
             low = tpr[fpr_idx]
             logger.info(
                 "TNR: {}, "
@@ -204,10 +237,12 @@ class MIAResults:
         else:
             max_r = max_r2
             idx = np.argmax(r2)
-            tnr = 1 - fpr
-            fnr = 1 - tpr
-            fnr_idx = np.where(fnr <= 0.001)[0][-1]
-            # pyre-fixme[16]: `int` has no attribute `__getitem__`.
+            tnr = np.ones_like(fpr) - fpr
+            # search for leftmost index where fnr <= 0.001 (fnr sorted in decreasing order)
+            fnr = np.ones_like(tpr) - tpr
+            fnr_idx = self._get_indices_of_error_at_thresholds(
+                fnr, np.array([0.001]), "fnr"
+            )[0]
             low = tnr[fnr_idx]
             logger.info(
                 "TNR: {}, "
@@ -233,8 +268,7 @@ class MIAResults:
     def compute_metrics_at_error_threshold(
         self,
         delta: float,
-        # pyre-fixme[24]: Generic type `np.ndarray` expects 2 type parameters.
-        error_threshold: np.ndarray,
+        error_threshold: NDArray[float],
         cap_eps: bool = True,
         verbose: bool = False,
     ) -> tuple[np.float64, np.float64, list[np.float64], list[np.float64]]:
@@ -271,20 +305,21 @@ class MIAResults:
         tpr_array = []
         tnr_array = []
 
-        for threshold in error_threshold:
-            if fpr.min() > threshold:
-                tpr_level = eps_fpr = 0
-            else:
-                fpr_idx = np.where(fpr <= threshold)[0][-1]
-                tpr_level = tpr[fpr_idx]
-                eps_fpr = eps1[fpr_idx]
+        fpr_indices = self._get_indices_of_error_at_thresholds(
+            fpr, error_threshold, "fpr"
+        )
+        fnr_indices = self._get_indices_of_error_at_thresholds(
+            fnr, error_threshold, "fnr"
+        )
 
-            if fnr.min() > threshold:
-                tnr_level = eps_fnr = 0
-            else:
-                fnr_idx = np.where(fnr <= threshold)[0][0]
-                tnr_level = tnr[fnr_idx]
-                eps_fnr = eps2[fnr_idx]
+        for i in range(len(error_threshold)):
+            fpr_idx = fpr_indices[i]
+            tpr_level = tpr[fpr_idx]
+            eps_fpr = eps1[fpr_idx]
+
+            fnr_idx = fnr_indices[i]
+            tnr_level = tnr[fnr_idx]
+            eps_fnr = eps2[fnr_idx]
 
             # pyre-fixme[6]: For 1st argument expected `SupportsRichComparisonT` but
             #  got `Union[ndarray[Any, dtype[Any]], int]`.
@@ -317,8 +352,7 @@ class MIAResults:
     def compute_eps_at_tpr_threshold(
         self,
         delta: float,
-        # pyre-fixme[24]: Generic type `np.ndarray` expects 2 type parameters.
-        tpr_threshold: np.ndarray,
+        tpr_threshold: NDArray[float],
         cap_eps: bool = True,
         verbose: bool = False,
     ) -> list[float]:
@@ -350,16 +384,16 @@ class MIAResults:
 
         tpr_array = []
 
-        for threshold in tpr_threshold:
-            if tpr.min() > threshold:
-                tpr_level = eps_tpr = 0
-            else:
-                tpr_idx = np.where(tpr >= threshold)[0][0]
-                tpr_level = tpr[tpr_idx]
-                eps_tpr = eps1[tpr_idx]
+        # find leftmost index in tpr that is >= tpr_threshold
+        tpr_indices = self._get_indices_of_error_at_thresholds(
+            tpr, tpr_threshold, "tpr"
+        )
 
+        for i in range(len(tpr_threshold)):
+            tpr_idx = tpr_indices[i]
+            tpr_level = tpr[tpr_idx]
+            eps_tpr = eps1[tpr_idx]
             tpr_array.append(tpr_level)
-
             eps_tpr_array.append(eps_tpr)
 
         if verbose:

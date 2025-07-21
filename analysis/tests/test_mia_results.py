@@ -44,6 +44,42 @@ class TestMiaResults(unittest.TestCase):
             scores_train=torch.tensor([0.1, 0.2]), scores_test=torch.tensor([0.1, 0.2])
         )
 
+    def test_get_indices_of_error_at_thresholds(self) -> None:
+        # Note that error_threshold also contains values outside of [min(error_rates), max(error_rates)]
+        # We also include thresholds at exact values of error_rates
+        error_thresholds = np.array([0.05, 0.1, 0.15, 0.25, 0.35, 0.45, 0.5, 0.55])
+
+        # Test for tpr and fpr error type
+        error_rates = np.array([0.1, 0.2, 0.3, 0.4, 0.5])
+        indices = self.mia_results._get_indices_of_error_at_thresholds(
+            error_rates, error_thresholds, "tpr"
+        )
+        self.assertEqual(indices.tolist(), [0, 0, 1, 2, 3, 4, 4, 4])
+
+        indices = self.mia_results._get_indices_of_error_at_thresholds(
+            error_rates, error_thresholds, "fpr"
+        )
+        self.assertEqual(indices.tolist(), [0, 0, 0, 1, 2, 3, 4, 4])
+
+        # Test for fnr error type (fnr = 1 - tpr)
+        error_rates = np.array([0.5, 0.4, 0.3, 0.2, 0.1])
+        indices = self.mia_results._get_indices_of_error_at_thresholds(
+            error_rates, error_thresholds, "fnr"
+        )
+        self.assertEqual(indices.tolist(), [4, 4, 4, 3, 2, 1, 0, 0])
+
+        # Test for tnr error type (tnr = 1 - fpr)
+        indices = self.mia_results._get_indices_of_error_at_thresholds(
+            error_rates, error_thresholds, "tnr"
+        )
+        self.assertEqual(indices.tolist(), [4, 4, 3, 2, 1, 0, 0, 0])
+
+        # Test invalid error type
+        with self.assertRaises(ValueError):
+            self.mia_results._get_indices_of_error_at_thresholds(
+                error_rates, error_thresholds, "invalid_type"
+            )
+
     def test_get_scores_and_labels_ordered(self) -> None:
         (
             labels_ordered,
@@ -119,7 +155,6 @@ class TestMiaResults(unittest.TestCase):
 
     @test_log_assert
     def test_compute_metrics_at_error_threshold(self, log_capture: LogCapture) -> None:
-        # pyre-fixme[24]: Generic type `np.ndarray` expects 2 type parameters.
         error_thresholds: np.ndarray = np.linspace(0.01, 1, 100)
 
         (
@@ -144,7 +179,6 @@ class TestMiaResults(unittest.TestCase):
 
     @test_log_assert
     def test_compute_eps_at_tpr_threshold(self, log_capture: LogCapture) -> None:
-        # pyre-fixme[24]: Generic type `np.ndarray` expects 2 type parameters.
         error_thresholds: np.ndarray = np.linspace(0.01, 1, 100)
 
         eps_tpr_array = self.mia_results.compute_eps_at_tpr_threshold(
@@ -222,7 +256,7 @@ class TestMiaResults(unittest.TestCase):
             mock_get_tpr_fpr.return_value = (tpr, fpr)
             with warnings.catch_warnings(record=True) as w:
                 self.mia_results.compute_epsilon_at_error_thresholds(
-                    delta=delta, error_thresholds=list(threshold)
+                    delta=delta, error_thresholds=threshold
                 )
                 self.assertFalse(
                     any("divide by zero" in str(warning.message) for warning in w)

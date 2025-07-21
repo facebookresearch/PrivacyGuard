@@ -68,7 +68,7 @@ class ParallelAnalysisNode(AnalysisNode):
         loss_test: torch.Tensor = torch.load(test_filename, weights_only=True)
         train_size, test_size = loss_train.shape[0], loss_test.shape[0]
         bootstrap_sample_size = min(train_size, test_size)
-        error_thresholds = np.linspace(0.01, 1, 100).tolist()
+        error_thresholds = np.linspace(0.01, 1, 100)
         metrics_results = []
         eps_tpr_results = []
 
