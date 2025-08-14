@@ -15,7 +15,7 @@ from numpy.typing import NDArray
 from privacy_guard.analysis.base_analysis_input import BaseAnalysisInput
 from privacy_guard.analysis.base_analysis_node import BaseAnalysisNode
 from privacy_guard.analysis.base_analysis_output import BaseAnalysisOutput
-from privacy_guard.analysis.mia_results import MIAResults
+from privacy_guard.analysis.mia.mia_results import MIAResults
 from tqdm import tqdm
 
 
