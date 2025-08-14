@@ -12,7 +12,7 @@ import numpy.typing as npt
 import torch
 from privacy_guard.analysis.analysis_node import AnalysisNode, AnalysisNodeOutput
 from privacy_guard.analysis.base_analysis_input import BaseAnalysisInput
-from privacy_guard.analysis.mia_results import MIAResults
+from privacy_guard.analysis.mia.mia_results import MIAResults
 
 
 logger: logging.Logger = logging.getLogger(__name__)
