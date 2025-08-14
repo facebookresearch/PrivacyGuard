@@ -10,7 +10,7 @@ from unittest.mock import patch
 
 import numpy as np
 import torch
-from privacy_guard.analysis.mia_results import MIAResults
+from privacy_guard.analysis.mia.mia_results import MIAResults
 from testfixtures import LogCapture
 from windtunnel.lib.unittest_utils import test_log_assert
 

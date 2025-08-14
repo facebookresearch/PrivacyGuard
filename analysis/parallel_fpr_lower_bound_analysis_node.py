@@ -16,7 +16,7 @@ from privacy_guard.analysis.fpr_lower_bound_analysis_node import (
     FPRLowerBoundAnalysisNodeOutput,
 )
 
-from privacy_guard.analysis.mia_results import MIAResults
+from privacy_guard.analysis.mia.mia_results import MIAResults
 
 # pyre-ignore:Undefined import [21]: Could not find a name `bootstrap` defined in module `scipy.stats`.
 from scipy.stats import bootstrap
