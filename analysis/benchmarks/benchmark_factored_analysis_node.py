@@ -13,7 +13,7 @@ import torch
 from privacy_guard.analysis.analysis_node import AnalysisNode
 from privacy_guard.analysis.base_analysis_input import BaseAnalysisInput
 
-from privacy_guard.analysis.factored_analysis_node import FactoredAnalysisNode
+from privacy_guard.analysis.mia.factored_analysis_node import FactoredAnalysisNode
 
 
 def compute_epsilon_using_analysis_node(
