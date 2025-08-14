@@ -5,7 +5,7 @@
 import unittest
 
 import numpy as np
-from privacy_guard.analysis.fdp_analysis_node import (
+from privacy_guard.analysis.mia.fdp_analysis_node import (
     FDPAnalysisNode,
     FDPAnalysisNodeOutput,
 )

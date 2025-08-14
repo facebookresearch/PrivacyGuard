@@ -8,7 +8,7 @@ import unittest
 import pandas as pd
 import pkg_resources
 import zstd
-from privacy_guard.analysis.aggregate_analysis_input import (
+from privacy_guard.analysis.mia.aggregate_analysis_input import (
     AggregateAnalysisInput,
     AggregationType,
 )

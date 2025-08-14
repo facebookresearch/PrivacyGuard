@@ -6,9 +6,9 @@ import logging
 
 import numpy as np
 import pandas as pd
-
-from privacy_guard.analysis.analysis_node import AnalysisNode
 from privacy_guard.analysis.base_analysis_input import BaseAnalysisInput
+
+from privacy_guard.analysis.mia.analysis_node import AnalysisNode
 
 logger: logging.Logger = logging.getLogger(__name__)
 

@@ -8,7 +8,7 @@ import unittest
 import pandas as pd
 
 from numpy.testing import assert_almost_equal
-from privacy_guard.analysis.aggregate_analysis_input import AggregationType
+from privacy_guard.analysis.mia.aggregate_analysis_input import AggregationType
 
 from privacy_guard.attacks.calib_attack import CalibAttack, CalibScoreType
 

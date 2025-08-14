@@ -50,7 +50,7 @@ import torch
 import torch.nn as nn
 from numpy.typing import NDArray
 
-from privacy_guard.analysis.aggregate_analysis_input import AggregationType
+from privacy_guard.analysis.mia.aggregate_analysis_input import AggregationType
 from privacy_guard.attacks.lira_attack import LiraAttack
 from privacy_guard.shadow_model_training import (
     analyze_attack,

@@ -6,12 +6,12 @@ from typing import List
 
 import numpy as np
 import pandas as pd
+from privacy_guard.analysis.base_analysis_input import BaseAnalysisInput
 
-from privacy_guard.analysis.aggregate_analysis_input import (
+from privacy_guard.analysis.mia.aggregate_analysis_input import (
     AggregateAnalysisInput,
     AggregationType,
 )
-from privacy_guard.analysis.base_analysis_input import BaseAnalysisInput
 from privacy_guard.attacks.base_attack import BaseAttack
 from python.migrations.py310 import StrEnum310
 
