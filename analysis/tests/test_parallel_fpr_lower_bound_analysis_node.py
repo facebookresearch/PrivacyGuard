@@ -9,14 +9,14 @@ import numpy as np
 import pandas as pd
 import pkg_resources
 import zstd
-from privacy_guard.analysis.aggregate_analysis_input import (
+from privacy_guard.analysis.mia.aggregate_analysis_input import (
     AggregateAnalysisInput,
     AggregationType,
 )
-from privacy_guard.analysis.fpr_lower_bound_analysis_node import (
+from privacy_guard.analysis.mia.fpr_lower_bound_analysis_node import (
     FPRLowerBoundAnalysisNodeOutput,
 )
-from privacy_guard.analysis.parallel_fpr_lower_bound_analysis_node import (
+from privacy_guard.analysis.mia.parallel_fpr_lower_bound_analysis_node import (
     ParallelFPRLowerBoundAnalysisNode,
 )
 

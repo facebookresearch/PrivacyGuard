@@ -6,8 +6,8 @@ import unittest
 
 import numpy as np
 import pandas as pd
-from privacy_guard.analysis.balanced_analysis_node import BalancedAnalysisNode
 from privacy_guard.analysis.base_analysis_node import BaseAnalysisInput
+from privacy_guard.analysis.mia.balanced_analysis_node import BalancedAnalysisNode
 
 
 class TestBalancedAnalysisNode(unittest.TestCase):

@@ -10,8 +10,8 @@ import pandas as pd
 
 import tabulate
 import torch
-from privacy_guard.analysis.analysis_node import AnalysisNode
 from privacy_guard.analysis.base_analysis_input import BaseAnalysisInput
+from privacy_guard.analysis.mia.analysis_node import AnalysisNode
 
 from privacy_guard.analysis.mia.factored_analysis_node import FactoredAnalysisNode
 

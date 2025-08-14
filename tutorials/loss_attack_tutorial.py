@@ -42,7 +42,7 @@ import numpy as np
 import torch
 import torch.nn as nn
 import torch.optim as optim
-from privacy_guard.analysis.analysis_node import AnalysisNode
+from privacy_guard.analysis.mia.analysis_node import AnalysisNode
 from privacy_guard.attacks.loss_attack import LossAttack
 from torch.utils.data import DataLoader, TensorDataset
 
@@ -135,7 +135,7 @@ The loss-based attack works by computing the loss of the model on both the train
 
 By analyzing the distribution of these loss values, an attacker can potentially distinguish between members and non-members of the training set, thus inferring membership.
 
-We run the attack via the `LossAttack` class. The class takes as input a function that computes loss given a model and a dataloader. In our case we define the `cross_entropy_loss` function. 
+We run the attack via the `LossAttack` class. The class takes as input a function that computes loss given a model and a dataloader. In our case we define the `cross_entropy_loss` function.
 """
 
 """:py"""
@@ -258,7 +258,7 @@ Let's interpret the results of our membership inference attack:
 ### Privacy Leakage (Epsilon)
 
 - **Epsilon**: This is a measure of privacy leakage in the context of differential privacy. A higher epsilon value indicates more privacy leakage. In practical terms, it quantifies how much more likely a member is to be correctly identified compared to a non-member.
-- **Epsilon at TPR=1%**: This is the epsilon value at a true positive rate (TPR) of 1%. It represents the privacy leakage when the attack correctly identifies only 1% of the members. 
+- **Epsilon at TPR=1%**: This is the epsilon value at a true positive rate (TPR) of 1%. It represents the privacy leakage when the attack correctly identifies only 1% of the members.
 
 ### Interpreting Our Results
 

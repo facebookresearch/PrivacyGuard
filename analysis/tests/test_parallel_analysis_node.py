@@ -9,14 +9,14 @@ import numpy as np
 import pandas as pd
 import pkg_resources
 import zstd
-from privacy_guard.analysis.aggregate_analysis_input import (
+from privacy_guard.analysis.base_analysis_node import compute_and_merge_outputs
+from privacy_guard.analysis.mia.aggregate_analysis_input import (
     AggregateAnalysisInput,
     AggregationType,
 )
-from privacy_guard.analysis.analysis_node import AnalysisNodeOutput
-from privacy_guard.analysis.base_analysis_node import compute_and_merge_outputs
-from privacy_guard.analysis.parallel_analysis_node import ParallelAnalysisNode
-from privacy_guard.analysis.score_analysis_node import (
+from privacy_guard.analysis.mia.analysis_node import AnalysisNodeOutput
+from privacy_guard.analysis.mia.parallel_analysis_node import ParallelAnalysisNode
+from privacy_guard.analysis.mia.score_analysis_node import (
     ScoreAnalysisNode,
     ScoreAnalysisNodeOutput,
 )
