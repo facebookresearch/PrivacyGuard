@@ -12,7 +12,7 @@ import numpy as np
 import pandas as pd
 import torch
 
-from privacy_guard.analysis.factored_analysis_node import FactoredAnalysisNode
+from privacy_guard.analysis.mia.factored_analysis_node import FactoredAnalysisNode
 
 
 class TestFactoredAnalysisNode(unittest.TestCase):
