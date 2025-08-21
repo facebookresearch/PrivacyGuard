@@ -12,7 +12,7 @@ import pandas as pd
 import textdistance
 from privacy_guard.analysis.base_analysis_node import BaseAnalysisNode
 from privacy_guard.analysis.base_analysis_output import BaseAnalysisOutput
-from privacy_guard.analysis.text_inclusion_analysis_input import (
+from privacy_guard.analysis.extraction.text_inclusion_analysis_input import (
     LCSBoundConfig,
     TextInclusionAnalysisInput,
 )

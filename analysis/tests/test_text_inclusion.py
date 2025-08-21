@@ -9,11 +9,10 @@ from typing import Dict, List
 import pandas as pd
 from pandas.testing import assert_series_equal
 
-from privacy_guard.analysis.text_inclusion_analysis_input import (
-    LCSBoundConfig,
+from privacy_guard.analysis.extraction.text_inclusion_analysis_input import (
     TextInclusionAnalysisInput,
 )
-from privacy_guard.analysis.text_inclusion_analysis_node import (
+from privacy_guard.analysis.extraction.text_inclusion_analysis_node import (
     _lcs_helper,
     _lcs_helper_bound,
     TextInclusionAnalysisNode,
