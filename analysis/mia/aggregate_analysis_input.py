@@ -20,6 +20,7 @@ class AggregationType(Enum):
     LOGSUMEXP = "logsumexp"
     GMEAN = "gmean"
     NONE = "none"
+    ABS_MAX = "abs_max"
 
 
 class AggregateAnalysisInput(BaseAnalysisInput):
