@@ -58,6 +58,22 @@ class TestAnalysisInput(unittest.TestCase):
 
         super().setUp()
 
+    def test_column_not_in_dataframe(self) -> None:
+        with self.assertRaises(AssertionError):
+            _ = TextInclusionAnalysisInput(
+                generation_df=pd.DataFrame(self.data), prompt_key="NOT PRESENT"
+            )
+
+        with self.assertRaises(AssertionError):
+            _ = TextInclusionAnalysisInput(
+                generation_df=pd.DataFrame(self.data), target_key="NOT PRESENT"
+            )
+
+        with self.assertRaises(AssertionError):
+            _ = TextInclusionAnalysisInput(
+                generation_df=pd.DataFrame(self.data), generation_key="NOT PRESENT"
+            )
+
     def test_construct_text_inclusion_analysis_input(self) -> None:
         results = self.analysis_node.compute_outputs()
 
@@ -219,10 +235,6 @@ class TestAnalysisInput(unittest.TestCase):
                 "This is a test prompt",
                 "Exact match to prompt!",
             ],
-            "target": [
-                "Target text 1",
-                "Target text 2",
-            ],
             "targets": [
                 ["Target text 1", "Exact match to output_text!"],
                 ["Target text 2", "Exact match to prompt!"],
@@ -236,6 +248,7 @@ class TestAnalysisInput(unittest.TestCase):
         multi_analysis_input = TextInclusionAnalysisInput(
             generation_df=pd.DataFrame(multi_data),
             target_key="targets",
+            disable_exact_match=True,
             disable_similarity=True,
         )
         multi_analysis_node = TextInclusionAnalysisNode(
@@ -283,6 +296,9 @@ class TestAnalysisInput(unittest.TestCase):
         ].tolist()
 
         self.assertEqual(longest_common_substring_false_pos, expected_fp)
+
+        self.assertEqual(len(results["exact_match"]), 0)
+        self.assertEqual(len(results["inclusion_score"]), 0)
 
     def test_bounded_lcs_match(self) -> None:
         s1 = ("w" * 50) + ("t" * 160) + ("b" * 50) + ("t" * 155)

@@ -39,21 +39,6 @@ class TextInclusionAnalysisNodeOutput(BaseAnalysisOutput):
     augmented_output_dataset: pd.DataFrame
 
 
-def _compute_edit_similarity(row: pd.Series) -> int:
-    """Compute edit similarity between target and output_text. Texts are cleaned first.
-
-    Args:
-        row (pd.Series): A row of a DataFrame containing the "target" and "output_text" columns.
-
-    Returns:
-        int: Edit similarity between the two strings.
-    """
-    s1 = _clean_text(row["target"])
-    s2 = _clean_text(row["output_text"])
-    levenshtein = textdistance.levenshtein.similarity(s1, s2)
-    return levenshtein
-
-
 def _clean_text(text: str) -> str:
     """Normalizes text.
 
@@ -78,34 +63,6 @@ def _clean_text(text: str) -> str:
     # Strip leading and trailing whitespace
     cleaned_text = cleaned_text.strip()
     return cleaned_text
-
-
-def _compute_exact_match(row: pd.Series) -> bool:
-    """Returns true if ANY target is exactly the same as the output_text.
-
-    Texts are NOT cleaned first except for stripping leading and trailing whitespace.
-
-    Args:
-        row (pd.Series): A row of a DataFrame containing the "target" and "output_text" columns.
-
-    Returns:
-        bool: True if the target is exactly the same as the output_text, False otherwise.
-    """
-    return row["target"].strip() == row["output_text"].strip()
-
-
-def _compute_inclusion_score(row: pd.Series) -> bool:
-    """Returns true if the target is included in the output_text. Texts are cleaned first.
-
-    Args:
-        row (pd.Series): A row of a DataFrame containing the "target" and "output_text" columns.
-
-    Returns:
-        bool: True if the target is included in the output_text, False otherwise.
-    """
-    s1 = _clean_text(row["target"])
-    s2 = _clean_text(row["output_text"])
-    return s1 in s2
 
 
 def _lcs_helper_bound(s1: str, s2: str, target: int = 150) -> int:
@@ -160,12 +117,13 @@ def _normalize_by_target_len(scores: pd.Series, targets: pd.Series) -> pd.Series
 class TextInclusionAnalysisNode(BaseAnalysisNode):
     """TextInclusionAnalysisNode class for PrivacyGuard.
 
-    Takes in a single dataframe containing "prompt", "target",
-    and "output_text" columns, and computes different inclusion scores
+    Takes in a single dataframe containing prompt, target, and generation columns, and computes different inclusion scores
     such as "exact_match", "longest_common_substring".
 
     Additionally supports filtering true positives, in situations
     where the target is errantly included in the prompt text.
+
+    NOTE: exact match and similarity are currently supported for single target only.
 
     Args:
         text_inclusion_analysis_input: AnalysisInputObject containing the
@@ -186,6 +144,9 @@ class TextInclusionAnalysisNode(BaseAnalysisNode):
         args:
             user_aggregation: specifies user aggregation strategy
         """
+        self.prompt_key: str = analysis_input.prompt_key
+        self.generation_key: str = analysis_input.generation_key
+
         self.target_key: str = analysis_input.target_key
         self.target_set_key: str = self.target_key + "_set"
         self.generation_df: pd.DataFrame = analysis_input.generation_df
@@ -199,6 +160,49 @@ class TextInclusionAnalysisNode(BaseAnalysisNode):
         ].apply(lambda x: len(x))
 
         super().__init__(analysis_input=analysis_input)
+
+    def _compute_edit_similarity(
+        self, row: pd.Series, s1_column: str | None = None, s2_column: str | None = None
+    ) -> int:
+        """Compute edit similarity between target and generation text. Texts are cleaned first.
+        Currently not supported for multi target mode.
+
+        Args:
+            row (pd.Series): A row of a DataFrame containing the s1 and s2 columns.
+
+        Returns:
+            int: Edit similarity between the two strings.
+        """
+        s1 = _clean_text(row[s1_column or self.target_key])
+        s2 = _clean_text(row[s2_column or self.generation_key])
+        levenshtein = textdistance.levenshtein.similarity(s1, s2)
+        return levenshtein
+
+    def _compute_exact_match(self, row: pd.Series) -> bool:
+        """Returns true if ANY target is exactly the same as the output_text.
+
+        Texts are NOT cleaned first except for stripping leading and trailing whitespace.
+
+        Args:
+            row (pd.Series): A row of a DataFrame containing the self.target_key and self.generation_key columns.
+
+        Returns:
+            bool: True if the target is exactly the same as the output_text, False otherwise.
+        """
+        return row[self.target_key].strip() == row[self.generation_key].strip()
+
+    def _compute_inclusion_score(self, row: pd.Series) -> bool:
+        """Returns true if the target is included in the output_text. Texts are cleaned first.
+
+        Args:
+            row (pd.Series): A row of a DataFrame containing the self.target_key and self.generation_key columns.
+
+        Returns:
+            bool: True if the target is included in the output_text, False otherwise.
+        """
+        s1 = _clean_text(row[self.target_key])
+        s2 = _clean_text(row[self.generation_key])
+        return s1 in s2
 
     def get_compute_longest_common_substring_map(
         self,
@@ -234,7 +238,7 @@ class TextInclusionAnalysisNode(BaseAnalysisNode):
             """Find the longest common substring between two strings. Texts are cleaned first.
 
             Args:
-                row (pd.Series): A row of a DataFrame containing the "target" and "output_text" columns.
+                row (pd.Series): A row of a DataFrame containing the prompt, target, and generation columns.
 
             Returns Dict containing:
                 lcs (Dict[str, float]): Dict mapping from target to longest common substring
@@ -299,9 +303,17 @@ class TextInclusionAnalysisNode(BaseAnalysisNode):
         generation_df = analysis_input.generation_df
 
         # Exact match
-        exact_match = generation_df.progress_apply(_compute_exact_match, axis=1)
-        # Inclusion score
-        inclusion_score = generation_df.progress_apply(_compute_inclusion_score, axis=1)
+        if not analysis_input.disable_exact_match:
+            exact_match = generation_df.progress_apply(
+                self._compute_exact_match, axis=1
+            )
+            # Inclusion score
+            inclusion_score = generation_df.progress_apply(
+                self._compute_inclusion_score, axis=1
+            )
+        else:
+            exact_match = pd.Series()
+            inclusion_score = pd.Series()
 
         outputs = TextInclusionAnalysisNodeOutput(
             num_samples=len(generation_df),
@@ -322,8 +334,8 @@ class TextInclusionAnalysisNode(BaseAnalysisNode):
 
             lcs_result = generation_df.progress_apply(
                 self.get_compute_longest_common_substring_map(
-                    comparison_key="output_text",
-                    false_positive_key="prompt",
+                    comparison_key=analysis_input.generation_key,
+                    false_positive_key=analysis_input.prompt_key,
                     lcs_bound_config=analysis_input.lcs_bound_config,
                 ),
                 axis=1,
@@ -342,7 +354,7 @@ class TextInclusionAnalysisNode(BaseAnalysisNode):
         if not analysis_input.disable_similarity:
             # Edit similarity
             generation_df["edit_similarity"] = generation_df.progress_apply(
-                _compute_edit_similarity, axis=1
+                self._compute_edit_similarity, axis=1
             )
             generation_df["edit_similarity_score"] = _normalize_by_target_len(
                 generation_df["edit_similarity"], generation_df["target"]
