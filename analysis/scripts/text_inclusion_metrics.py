@@ -11,7 +11,7 @@ from typing import Any, Dict
 
 import pandas as pd
 
-from privacy_guard.analysis.text_inclusion_analysis_node import (
+from privacy_guard.analysis.extraction.text_inclusion_analysis_node import (
     TextInclusionAnalysisNode,
 )
 

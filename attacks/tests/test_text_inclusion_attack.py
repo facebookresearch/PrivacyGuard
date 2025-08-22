@@ -11,7 +11,7 @@ from unittest.mock import Mock, patch
 
 import pandas as pd
 from later.unittest import TestCase
-from privacy_guard.analysis.text_inclusion_analysis_input import (
+from privacy_guard.analysis.extraction.text_inclusion_analysis_input import (
     TextInclusionAnalysisInput,
 )
 

@@ -9,7 +9,7 @@ from typing import Dict
 
 import pandas as pd
 
-from privacy_guard.analysis.text_inclusion_analysis_input import (
+from privacy_guard.analysis.extraction.text_inclusion_analysis_input import (
     LCSBoundConfig,
     TextInclusionAnalysisInput,
     TextInclusionAnalysisInputBatch,
