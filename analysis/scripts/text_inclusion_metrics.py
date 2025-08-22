@@ -172,6 +172,7 @@ def run_analysis_on_json_data_impl(
         num_rows=None if num_rows <= 0 else num_rows,
         bound_lcs=bound_lcs,
     ).run_attack()
+    analysis_input.disable_exact_match = True
 
     analysis_node = TextInclusionAnalysisNode(analysis_input=analysis_input)
 

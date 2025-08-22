@@ -30,25 +30,37 @@ class TextInclusionAnalysisInput(BaseAnalysisInput):
         generation_df: dataframe containing prompt, target, and output_text columns
     """
 
-    REQUIRED_COLUMNS = {
-        "prompt",
-        "target",
-        "output_text",
-    }
-
     def __init__(
         self,
         generation_df: pd.DataFrame,
+        prompt_key: str = "prompt",
         target_key: str = "target",
+        generation_key: str = "output_text",
+        disable_exact_match: bool = False,
         disable_lcs: bool = False,
         disable_similarity: bool = False,
         lcs_bound_config: LCSBoundConfig | None = None,
     ) -> None:
-        self.target_key = target_key
+        columns = generation_df.columns.tolist()
+        assert (
+            prompt_key in columns
+        ), f"Prompt key '{prompt_key}' not found in dataframe columns {columns}"
+        assert (
+            target_key in columns
+        ), f"Target key '{target_key}' not found in dataframe columns {columns}"
+        assert (
+            generation_key in columns
+        ), f"Generation key '{generation_key}' not found in dataframe columns {columns}"
 
+        self.prompt_key = prompt_key
+        self.target_key = target_key
+        self.generation_key = generation_key
+
+        self.disable_exact_match = disable_exact_match
         self.disable_lcs = disable_lcs
         self.disable_similarity = disable_similarity
         self.lcs_bound_config = lcs_bound_config
+
         super().__init__(df_train_user=generation_df, df_test_user=pd.DataFrame())
 
     @property

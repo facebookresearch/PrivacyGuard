@@ -114,16 +114,42 @@ class TestTextInclusionAttackBatch(TestCase):
 
         # Write some sample data to the files
         with open(file1_path, "w") as f1:
-            f1.write('{"id": 1, "text": "Sample text 1"}\n')
-            f1.write('{"id": 2, "text": "Sample text 2"}\n')
+            f1.write(
+                '{"id": 1, "text": "Sample text 1", "prompt": "PROMPT", "output_text": "output_text"}\n'
+            )
+            f1.write(
+                '{"id": 2, "text": "Sample text 2", "prompt": "PROMPT", "output_text": "output_text"}\n'
+            )
 
         with open(file2_path, "w") as f2:
-            f2.write('{"id": 3, "text": "Sample text 3"}\n')
-            f2.write('{"id": 4, "text": "Sample text 4"}\n')
+            f2.write(
+                '{"id": 3, "text": "Sample text 3", "prompt": "PROMPT", "output_text": "output_text"}\n'
+            )
+            f2.write(
+                '{"id": 4, "text": "Sample text 4", "prompt": "PROMPT", "output_text": "output_text"}\n'
+            )
 
         with open(file3_path, "w") as f2:
-            f2.write('{"id": 3, "text": "Sample text 5"}\n')
-            f2.write('{"id": 4, "text": "Sample text 6"}\n')
+            f2.write(
+                '{"id": 3, "text": "Sample text 5", "prompt": "PROMPT", "output_text": "output_text"}\n'
+            )
+            f2.write(
+                '{"id": 4, "text": "Sample text 6", "prompt": "PROMPT", "output_text": "output_text"}\n'
+            )
+
+        self.testReturnValue = TextInclusionAnalysisInput(
+            target_key="text",
+            generation_df=pd.DataFrame(
+                [
+                    {
+                        "id": 1,
+                        "text": "Sample text 1",
+                        "prompt": "PROMPT",
+                        "output_text": "output_text",
+                    }
+                ]
+            ),
+        )
 
         super().setUp()
 
@@ -136,7 +162,7 @@ class TestTextInclusionAttackBatch(TestCase):
         ) -> TextInclusionAnalysisInput:
             self.assertEqual(attack.bound_lcs, comparison_attack_batch.bound_lcs)
             self.assertEqual(attack.num_rows, comparison_attack_batch.num_rows)
-            return TextInclusionAnalysisInput(generation_df=pd.DataFrame())
+            return self.testReturnValue
 
         return mock_run_attack
 
@@ -184,9 +210,7 @@ class TestTextInclusionAttackBatch(TestCase):
             )
         )
 
-        mock_run_attack.return_value = TextInclusionAnalysisInput(
-            generation_df=pd.DataFrame()
-        )
+        mock_run_attack.return_value = self.testReturnValue
 
         with patch.object(TextInclusionAttack, "run_attack", mock_run_attack):
             result_batch = text_inclusion_attack_batch_filter.load_results_from_mnt()
