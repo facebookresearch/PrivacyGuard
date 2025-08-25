@@ -33,6 +33,7 @@ class LiraAttack(BaseAttack):
         df_train_merge: pd.DataFrame,
         df_test_merge: pd.DataFrame,
         row_aggregation: AggregationType,
+        user_id_key: str = "separable_id",  # Temporarily add default
         use_fixed_variance: bool = False,
         std_dev_type: str = "global",
         online_attack: bool = False,
@@ -46,6 +47,7 @@ class LiraAttack(BaseAttack):
                 also has "score_mean" and "score_std" from the shadow tables
 
             row_aggregation: specifies user aggregation strategy
+            user_id_key: key corresponding to user id, used for aggregating scores.
 
             used_fixed_variance: whether to use fixed variance or not,
                 normalizing using the orig scores of the attack.
@@ -71,6 +73,7 @@ class LiraAttack(BaseAttack):
         self.df_test_merge = df_test_merge
 
         self.row_aggregation: AggregationType = row_aggregation
+        self.user_id_key = user_id_key
         self.std_dev_type = std_dev_type
         self.online_attack = online_attack
         self.offline_shadows_evals_in = offline_shadows_evals_in
@@ -203,6 +206,7 @@ class LiraAttack(BaseAttack):
             row_aggregation=self.row_aggregation,
             df_train_merge=self.df_train_merge,
             df_test_merge=self.df_test_merge,
+            user_id_key=self.user_id_key,
         )
 
         return analysis_input

@@ -28,6 +28,8 @@ class TestCalibAttack(unittest.TestCase):
             "country_bucket_name": "country_bucket",
             "device_os_version_name": "device_os_version",
         }
+        self.user_id_key = "separable_id"
+
         self.calibrated_calib_attack = CalibAttack(
             df_hold_out_train=self.df_hold_out_train,
             df_hold_out_test=self.df_hold_out_train,
@@ -35,6 +37,7 @@ class TestCalibAttack(unittest.TestCase):
             df_hold_out_test_calib=self.df_hold_out_train,
             row_aggregation=AggregationType.MAX,
             should_calibrate_scores=True,
+            user_id_key=self.user_id_key,
             score_type=CalibScoreType.LOSS,
         )
 
@@ -45,6 +48,7 @@ class TestCalibAttack(unittest.TestCase):
             df_hold_out_test_calib=self.df_hold_out_train,
             row_aggregation=AggregationType.MAX,
             should_calibrate_scores=False,
+            user_id_key=self.user_id_key,
             score_type=CalibScoreType.LOSS,
         )
 
@@ -96,6 +100,7 @@ class TestCalibAttack(unittest.TestCase):
                 df_hold_out_test_calib=self.df_hold_out_train,
                 row_aggregation=AggregationType.MAX,
                 should_calibrate_scores=False,
+                user_id_key=self.user_id_key,
                 score_type=CalibScoreType.LOSS,
             )
 
