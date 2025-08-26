@@ -56,11 +56,14 @@ class TestLiraAttack(unittest.TestCase):
         }
         self.df_train_merge = pd.DataFrame.from_dict(self.df_train_merge)
 
+        self.user_id_key = "separable_id"
+
         self.lira_attack = LiraAttack(
             df_train_merge=self.df_train_merge,
             df_test_merge=self.df_train_merge,
             row_aggregation=AggregationType.MAX,
             use_fixed_variance=True,
+            user_id_key=self.user_id_key,
         )
 
         self.lira_attack_no_fixed_variance = LiraAttack(
@@ -68,6 +71,7 @@ class TestLiraAttack(unittest.TestCase):
             df_test_merge=self.df_train_merge,
             row_aggregation=AggregationType.MAX,
             use_fixed_variance=False,
+            user_id_key=self.user_id_key,
         )
 
         super().setUp()
@@ -96,6 +100,7 @@ class TestLiraAttack(unittest.TestCase):
             df_test_merge=self.df_train_merge,
             row_aggregation=AggregationType.MAX,
             std_dev_type="global",
+            user_id_key=self.user_id_key,
         )
 
         # Execute
@@ -125,6 +130,7 @@ class TestLiraAttack(unittest.TestCase):
             row_aggregation=AggregationType.MAX,
             std_dev_type="shadows_in",
             online_attack=False,
+            user_id_key=self.user_id_key,
         )
 
         # Execute
@@ -154,6 +160,7 @@ class TestLiraAttack(unittest.TestCase):
             row_aggregation=AggregationType.MAX,
             std_dev_type="shadows_in",
             online_attack=True,
+            user_id_key=self.user_id_key,
         )
 
         # Execute
@@ -183,6 +190,7 @@ class TestLiraAttack(unittest.TestCase):
             row_aggregation=AggregationType.MAX,
             std_dev_type="shadows_out",
             online_attack=False,
+            user_id_key=self.user_id_key,
         )
 
         # Execute
@@ -212,6 +220,7 @@ class TestLiraAttack(unittest.TestCase):
             row_aggregation=AggregationType.MAX,
             std_dev_type="shadows_out",
             online_attack=True,
+            user_id_key=self.user_id_key,
         )
 
         # Execute
@@ -241,6 +250,7 @@ class TestLiraAttack(unittest.TestCase):
             row_aggregation=AggregationType.MAX,
             std_dev_type="mix",
             online_attack=True,
+            user_id_key=self.user_id_key,
         )
 
         # Execute
@@ -278,6 +288,7 @@ class TestLiraAttack(unittest.TestCase):
             row_aggregation=AggregationType.MAX,
             std_dev_type="mix",
             online_attack=False,
+            user_id_key=self.user_id_key,
         )
 
         # Execute and Verify
@@ -297,6 +308,7 @@ class TestLiraAttack(unittest.TestCase):
             df_test_merge=self.df_train_merge,
             row_aggregation=AggregationType.MAX,
             std_dev_type="invalid_type",
+            user_id_key=self.user_id_key,
         )
 
         # Execute and Verify

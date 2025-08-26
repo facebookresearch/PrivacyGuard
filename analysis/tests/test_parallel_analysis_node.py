@@ -44,10 +44,13 @@ class TestParallelAnalysisNode(unittest.TestCase):
                 )
             )
 
+        self.user_id_key = "separable_id"
+
         self.analysis_input = AggregateAnalysisInput(
             row_aggregation=AggregationType.MAX,
             df_train_merge=self.df_train_merge,
             df_test_merge=self.df_test_merge,
+            user_id_key=self.user_id_key,
         )
 
         self.parallel_analysis_node = ParallelAnalysisNode(

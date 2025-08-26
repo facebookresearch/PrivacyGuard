@@ -37,6 +37,8 @@ class TestAnalysisInput(unittest.TestCase):
                 )
             )
 
+        self.user_id_key = "separable_id"
+
         super().setUp()
 
     def test_construct_analysis_input(self) -> None:
@@ -44,6 +46,7 @@ class TestAnalysisInput(unittest.TestCase):
             row_aggregation=AggregationType.MIN,
             df_train_merge=self.df_train_merge,
             df_test_merge=self.df_test_merge,
+            user_id_key=self.user_id_key,
         )
 
         df_missing_col = self.df_train_merge.drop("score", axis=1)
@@ -52,6 +55,7 @@ class TestAnalysisInput(unittest.TestCase):
                 row_aggregation=AggregationType.MIN,
                 df_train_merge=df_missing_col,
                 df_test_merge=self.df_test_merge,
+                user_id_key=self.user_id_key,
             )
         self.assertIn("score", str(ex.exception))
 
@@ -63,6 +67,7 @@ class TestAnalysisInput(unittest.TestCase):
                 row_aggregation=AggregationType.MIN,
                 df_train_merge=df_missing_col,
                 df_test_merge=pd.DataFrame(),
+                user_id_key=self.user_id_key,
             )
         self.assertIn("score", str(ex.exception))
         self.assertIn("separable_id", str(ex.exception))
@@ -82,6 +87,7 @@ class TestAnalysisInput(unittest.TestCase):
                 row_aggregation=agg,
                 df_train_merge=self.df_train_merge,
                 df_test_merge=self.df_test_merge,
+                user_id_key=self.user_id_key,
             )
             self.assertFalse(analysis_node.df_train_user.empty)
             self.assertFalse(analysis_node.df_test_user.empty)
@@ -94,6 +100,7 @@ class TestAnalysisInput(unittest.TestCase):
             row_aggregation=agg,
             df_train_merge=self.df_train_merge,
             df_test_merge=self.df_test_merge,
+            user_id_key=self.user_id_key,
         )
 
         df_train_user_manual = pd.DataFrame(

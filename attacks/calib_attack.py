@@ -45,6 +45,7 @@ class CalibAttack(BaseAttack):
         row_aggregation: AggregationType,
         should_calibrate_scores: bool,
         score_type: CalibScoreType,
+        user_id_key: str = "separable_id",  # Temporarily add default
         merge_columns: List[str] | None = None,
     ) -> None:
         """
@@ -57,6 +58,7 @@ class CalibAttack(BaseAttack):
             row_aggregation: specifies user aggregation strategy
             should_calibrate_scores: Whether to calibrate scores with df_hold_out_*_calib or not.
             score_type: type of score to use.
+            user_id_key: key representing user ids, to use in aggregation.
             merge_columns: list of columns to merge dataset and calibrated
                 dataset on. If None, will use the default columns for the ads usecase.
         """
@@ -71,6 +73,7 @@ class CalibAttack(BaseAttack):
 
         self.score_type = score_type
 
+        self.user_id_key = user_id_key
         self.merge_columns: List[str] = merge_columns or self.ADS_MERGE_COLUMNS
 
         for column in self.merge_columns:
@@ -204,6 +207,7 @@ class CalibAttack(BaseAttack):
             row_aggregation=self.row_aggregation,
             df_train_merge=df_train_merge,
             df_test_merge=df_test_merge,
+            user_id_key=self.user_id_key,
         )
 
         return analysis_input
