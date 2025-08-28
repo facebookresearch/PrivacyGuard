@@ -283,7 +283,6 @@ class TestBalancedAnalysisNode(unittest.TestCase):
         # Check that the outputs have the expected keys
         expected_keys = [
             "eps",
-            "eps_geo_split",
             "eps_lb",
             "eps_fpr_max_ub",
             "eps_fpr_lb",

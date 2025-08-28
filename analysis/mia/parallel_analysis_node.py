@@ -139,7 +139,6 @@ class ParallelAnalysisNode(AnalysisNode):
         Returns:
             AnalysisNodeOutput dataclass with fields:
             "eps": epsilon at TPR=1% UB threshold if use_upper_bound is True, else epsilon at TPR=1% LB threshold
-            "eps_geo_split": epsilon at TPR=1% UB Threshold
             "eps_fpr_max_lb", "eps_fpr_lb", "eps_fpr_ub": epsilon at various false positive rate:
             "eps_tpr_lb", "eps_tpr_ub": epsilon at various true positive rates
             "eps_ci": epsilon calculate with Clopper-Pearson confidence interval
@@ -218,7 +217,6 @@ class ParallelAnalysisNode(AnalysisNode):
 
         outputs = AnalysisNodeOutput(
             eps=eps_tpr_boundary[0],  # epsilon at TPR=1% UB threshold
-            eps_geo_split=eps_tpr_ub[0],  # epsilon at TPR=1% UB threshold
             eps_lb=eps_tpr_lb[0],
             eps_fpr_max_ub=np.nanmax(eps_fpr_ub),
             eps_fpr_lb=list(eps_fpr_lb),
