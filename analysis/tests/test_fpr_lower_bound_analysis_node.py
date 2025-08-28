@@ -2,13 +2,8 @@
 
 # pyre-strict
 
-import io
-import unittest
-
 import numpy as np
-import pandas as pd
-import pkg_resources
-import zstd
+
 from privacy_guard.analysis.mia.aggregate_analysis_input import (
     AggregateAnalysisInput,
     AggregationType,
@@ -18,35 +13,18 @@ from privacy_guard.analysis.mia.fpr_lower_bound_analysis_node import (
     FPRLowerBoundAnalysisNodeOutput,
 )
 
+from privacy_guard.analysis.tests.base_test_analysis_node import BaseTestAnalysisNode
 
-class TestFPRLowerBoundAnalysisNode(unittest.TestCase):
+
+class TestFPRLowerBoundAnalysisNode(BaseTestAnalysisNode):
     def setUp(self) -> None:
-        json_path = pkg_resources.resource_filename(
-            __name__, "test_data/df_train_merge.json.zst"
-        )
-        with open(json_path, "rb") as f:
-            self.df_train_merge = pd.read_json(
-                io.StringIO(
-                    zstd.ZstdDecompressor().decompress(f.read()).decode("latin1")
-                )
-            )
-
-        json_path = pkg_resources.resource_filename(
-            __name__, "test_data/df_test_merge.json.zst"
-        )
-        with open(json_path, "rb") as f:
-            self.df_test_merge = pd.read_json(
-                io.StringIO(
-                    zstd.ZstdDecompressor().decompress(f.read()).decode("latin1")
-                )
-            )
-        self.user_id_key = "separable_id"
+        super().setUp()
 
         self.analysis_input = AggregateAnalysisInput(
             row_aggregation=AggregationType.MAX,
             df_train_merge=self.df_train_merge,
             df_test_merge=self.df_test_merge,
-            user_id_key="separable_id",
+            user_id_key=self.user_id_key,
         )
 
         self.analysis_node = FPRLowerBoundAnalysisNode(
@@ -55,8 +33,6 @@ class TestFPRLowerBoundAnalysisNode(unittest.TestCase):
             n_users_for_eval=5000,
             num_bootstrap_resampling_times=40,
         )
-
-        super().setUp()
 
     def test_get_analysis_input(self) -> None:
         self.assertIsInstance(self.analysis_node.analysis_input, AggregateAnalysisInput)
@@ -126,10 +102,26 @@ class TestFPRLowerBoundAnalysisNode(unittest.TestCase):
         close to random guessing.
         Epsilon close to zero, and accuracy close to 0.5
 
-        (json test and train data were sampled from same distribution)
+        Test and train data were sampled from same distribution)
         """
 
-        outputs = self.analysis_node.compute_outputs()
+        df_train_user_long, df_test_user_long = self.get_long_dataframes()
+
+        analysis_input = AggregateAnalysisInput(
+            row_aggregation=AggregationType.MAX,
+            df_train_merge=df_train_user_long,
+            df_test_merge=df_test_user_long,
+            user_id_key=self.user_id_key,
+        )
+
+        analysis_node = FPRLowerBoundAnalysisNode(
+            analysis_input=analysis_input,
+            delta=0.000001,
+            n_users_for_eval=5000,
+            num_bootstrap_resampling_times=40,
+        )
+
+        outputs = analysis_node.compute_outputs()
 
         self.assertLessEqual(float(outputs["eps_ci"]), 0.1)
         self.assertLessEqual(float(outputs["accuracy"]), 0.51)
