@@ -1,5 +1,5 @@
 # pyre-strict
-#!/usr/bin/env -S grimaldi --kernel empirical_dp
+#!/usr/bin/env -S grimaldi --kernel bento_kernel_privacy_guard
 # FILE_UID: 3eb7d962-95ba-4ce9-8fa7-c288845d3cbf
 # NOTEBOOK_NUMBER: N7714854 (1978195306257478)
 

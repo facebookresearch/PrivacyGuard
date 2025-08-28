@@ -1,5 +1,5 @@
 # pyre-ignore-all-errors
-#!/usr/bin/env -S grimaldi --kernel bento_kernel_empirical_dp
+#!/usr/bin/env -S grimaldi --kernel bento_kernel_privacy_guard
 # FILE_UID: 65090375-6bbb-4bbb-b05f-3e0dd15dbbff
 # NOTEBOOK_NUMBER: N7208437 (9923413411059195)
 
