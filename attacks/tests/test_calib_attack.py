@@ -15,20 +15,12 @@ from privacy_guard.attacks.calib_attack import CalibAttack, CalibScoreType
 
 class TestCalibAttack(unittest.TestCase):
     def setUp(self) -> None:
-        self.df_hold_out_train_json = """{"separable_id":{"0":100101280879201,"1":100101280879201,"2":100101280879201,"3":100113514211201,"4":100116367544001},"ad_id":{"0":120202291265480062,"1":23861966757870570,"2":120201337204280551,"3":6371985258328,"4":120200794973200645},"timestamp":{"0":1700972528,"1":1700972594,"2":1700972528,"3":1700928130,"4":1700933560},"impression_signature":{"0":39367.0,"1":55814.0,"2":304.0,"3":8246.0,"4":8514.0},"predictions":{"0":0.21985362,"1":0.10969869,"2":0.24854505,"3":0.0068224324,"4":0.004189688},"label":{"0":0.0,"1":1.0,"2":0.0,"3":1.0,"4":1.0}}"""
+        self.df_hold_out_train_json = """{"user_id":{"0":00001,"1":00002,"2":00003,"3":00004,"4":00005},"sample_id":{"0":101,"1":102,"2":103,"3":104,"4":105},"timestamp":{"0":1000000001,"1":1000000002,"2":1000000003,"3":1000000004,"4":1000000005},"hash_id":{"0":30001.0,"1":30002.0,"2":50.0,"3":51.0,"4":52.0},"predictions":{"0":0.21985362,"1":0.10969869,"2":0.24854505,"3":0.0068224324,"4":0.004189688},"label":{"0":0.0,"1":1.0,"2":0.0,"3":1.0,"4":1.0}}"""
         self.df_hold_out_train = pd.read_json(self.df_hold_out_train_json)
 
-        self.eval_output_table_settings = {
-            "prediction_dtype": "array<float>",
-            "prediction_name": "prediction_optimized",
-            "eval_date_name": "ds",
-            "oba_status_name": "user_oba_opt_out_status",
-            "impression_signature_name": "impression_signature",
-            "imp_device_type_name": "imp_device_type",
-            "country_bucket_name": "country_bucket",
-            "device_os_version_name": "device_os_version",
-        }
-        self.user_id_key = "separable_id"
+        self.MERGE_COLUMNS = ["user_id", "sample_id", "timestamp", "hash_id"]
+
+        self.user_id_key = "user_id"
 
         self.calibrated_calib_attack = CalibAttack(
             df_hold_out_train=self.df_hold_out_train,
@@ -39,6 +31,7 @@ class TestCalibAttack(unittest.TestCase):
             should_calibrate_scores=True,
             user_id_key=self.user_id_key,
             score_type=CalibScoreType.LOSS,
+            merge_columns=self.MERGE_COLUMNS,
         )
 
         self.calib_attack = CalibAttack(
@@ -50,6 +43,7 @@ class TestCalibAttack(unittest.TestCase):
             should_calibrate_scores=False,
             user_id_key=self.user_id_key,
             score_type=CalibScoreType.LOSS,
+            merge_columns=self.MERGE_COLUMNS,
         )
 
         super().setUp()
@@ -87,9 +81,7 @@ class TestCalibAttack(unittest.TestCase):
     def test_column_validation(self) -> None:
         """Test that an IndexError is raised when a required column is missing."""
         # Create a dataframe missing one of the required columns
-        df_missing_column = self.df_hold_out_train.drop(
-            columns=["impression_signature"]
-        )
+        df_missing_column = self.df_hold_out_train.drop(columns=["hash_id"])
 
         # Verify that an IndexError is raised when trying to create a CalibAttack instance
         with self.assertRaises(IndexError) as context:
@@ -102,10 +94,11 @@ class TestCalibAttack(unittest.TestCase):
                 should_calibrate_scores=False,
                 user_id_key=self.user_id_key,
                 score_type=CalibScoreType.LOSS,
+                merge_columns=self.MERGE_COLUMNS,
             )
 
         # Verify the error message
         self.assertIn(
-            "column impression_signature not found in input dataframe(s)",
+            "column hash_id not found in input dataframe(s)",
             str(context.exception),
         )
