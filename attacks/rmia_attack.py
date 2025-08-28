@@ -25,6 +25,7 @@ class RmiaAttack(BaseAttack):
     based on the paper: https://arxiv.org/abs/2312.03262.
     Implementation incorporated into PrivacyGuard based on the official implementation from https://github.com/privacytrustlab/ml_privacy_meter/tree/master
 
+
     The attack estimates population probability distributions using reference models and compares
     the target model's predictions against estimated population averages to determine membership.
 
@@ -348,7 +349,6 @@ class RmiaAttack(BaseAttack):
                 ref_memberships=combined_ref_memberships,
                 population_ref_scores=population_ref_scores,
             )
-            print(current_alpha)
         # Compute membership scores for training data
         train_membership_scores = self._compute_membership_scores(
             target_scores=train_target_scores,
