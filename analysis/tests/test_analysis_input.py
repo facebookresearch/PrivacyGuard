@@ -2,43 +2,19 @@
 
 # pyre-strict
 
-import io
-import unittest
-
 import pandas as pd
-import pkg_resources
-import zstd
+
 from privacy_guard.analysis.mia.aggregate_analysis_input import (
     AggregateAnalysisInput,
     AggregationType,
 )
+
+from privacy_guard.analysis.tests.base_test_analysis_node import BaseTestAnalysisNode
 from scipy.stats import gmean
 
 
-class TestAnalysisInput(unittest.TestCase):
+class TestAnalysisInput(BaseTestAnalysisNode):
     def setUp(self) -> None:
-        json_path = pkg_resources.resource_filename(
-            __name__, "test_data/df_train_merge.json.zst"
-        )
-        with open(json_path, "rb") as f:
-            self.df_train_merge = pd.read_json(
-                io.StringIO(
-                    zstd.ZstdDecompressor().decompress(f.read()).decode("latin1")
-                )
-            )
-
-        json_path = pkg_resources.resource_filename(
-            __name__, "test_data/df_test_merge.json.zst"
-        )
-        with open(json_path, "rb") as f:
-            self.df_test_merge = pd.read_json(
-                io.StringIO(
-                    zstd.ZstdDecompressor().decompress(f.read()).decode("latin1")
-                )
-            )
-
-        self.user_id_key = "separable_id"
-
         super().setUp()
 
     def test_construct_analysis_input(self) -> None:
@@ -60,7 +36,7 @@ class TestAnalysisInput(unittest.TestCase):
         self.assertIn("score", str(ex.exception))
 
         df_missing_col = self.df_test_merge.drop("score", axis=1).drop(
-            "separable_id", axis=1
+            self.user_id_key, axis=1
         )
         with self.assertRaises(ValueError) as ex:
             _ = AggregateAnalysisInput(
@@ -70,7 +46,7 @@ class TestAnalysisInput(unittest.TestCase):
                 user_id_key=self.user_id_key,
             )
         self.assertIn("score", str(ex.exception))
-        self.assertIn("separable_id", str(ex.exception))
+        self.assertIn(self.user_id_key, str(ex.exception))
 
     def test_row_aggregation_cases(self) -> None:
         # for covered cases, we should not raise an exception
@@ -104,15 +80,15 @@ class TestAnalysisInput(unittest.TestCase):
         )
 
         df_train_user_manual = pd.DataFrame(
-            analysis_input.df_train_merge[["score", "separable_id"]]
-            .groupby(["separable_id"], sort=False)
+            analysis_input.df_train_merge[["score", self.user_id_key]]
+            .groupby([self.user_id_key], sort=False)
             .score.apply(lambda x: gmean(x.clip(lower=1e-3))),
             columns=["score"],
         )
 
         df_test_user_manual = pd.DataFrame(
-            analysis_input.df_test_merge[["score", "separable_id"]]
-            .groupby(["separable_id"], sort=False)
+            analysis_input.df_test_merge[["score", self.user_id_key]]
+            .groupby([self.user_id_key], sort=False)
             .score.apply(lambda x: gmean(x.clip(lower=1e-3))),
             columns=["score"],
         )
