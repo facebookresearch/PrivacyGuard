@@ -1,9 +1,4 @@
-#!/usr/bin/env -S grimaldi --kernel python3
 # (c) Meta Platforms, Inc. and affiliates. Confidential and proprietary.
-
-# FILE_UID: a78b38b6-1640-4ecd-be8b-bc1e9247c278
-
-""":py"""
 
 # pyre-strict
 from typing import Optional
