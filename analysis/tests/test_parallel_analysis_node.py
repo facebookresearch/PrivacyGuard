@@ -2,13 +2,8 @@
 
 # pyre-strict
 
-import io
-import unittest
-
 import numpy as np
-import pandas as pd
-import pkg_resources
-import zstd
+
 from privacy_guard.analysis.base_analysis_node import compute_and_merge_outputs
 from privacy_guard.analysis.mia.aggregate_analysis_input import (
     AggregateAnalysisInput,
@@ -21,30 +16,12 @@ from privacy_guard.analysis.mia.score_analysis_node import (
     ScoreAnalysisNodeOutput,
 )
 
+from privacy_guard.analysis.tests.base_test_analysis_node import BaseTestAnalysisNode
 
-class TestParallelAnalysisNode(unittest.TestCase):
+
+class TestParallelAnalysisNode(BaseTestAnalysisNode):
     def setUp(self) -> None:
-        json_path = pkg_resources.resource_filename(
-            __name__, "test_data/df_train_merge.json.zst"
-        )
-        with open(json_path, "rb") as f:
-            self.df_train_merge = pd.read_json(
-                io.StringIO(
-                    zstd.ZstdDecompressor().decompress(f.read()).decode("latin1")
-                )
-            )
-
-        json_path = pkg_resources.resource_filename(
-            __name__, "test_data/df_test_merge.json.zst"
-        )
-        with open(json_path, "rb") as f:
-            self.df_test_merge = pd.read_json(
-                io.StringIO(
-                    zstd.ZstdDecompressor().decompress(f.read()).decode("latin1")
-                )
-            )
-
-        self.user_id_key = "separable_id"
+        super().setUp()
 
         self.analysis_input = AggregateAnalysisInput(
             row_aggregation=AggregationType.MAX,
@@ -62,8 +39,6 @@ class TestParallelAnalysisNode(unittest.TestCase):
         )
 
         self.score_analysis_node = ScoreAnalysisNode(analysis_input=self.analysis_input)
-
-        super().setUp()
 
     def test_get_analysis_input(self) -> None:
         self.assertIsInstance(
@@ -113,10 +88,26 @@ class TestParallelAnalysisNode(unittest.TestCase):
         close to random guessing.
         Epsilon close to zero, and accuracy close to 0.5
 
-        (json test and train data were sampled from same distribution)
+        Train user and test user are sampled from the same distribution.
         """
+        df_train_user_long, df_test_user_long = self.get_long_dataframes()
 
-        outputs = self.parallel_analysis_node.compute_outputs()
+        analysis_input = AggregateAnalysisInput(
+            row_aggregation=AggregationType.MAX,
+            df_train_merge=df_train_user_long,
+            df_test_merge=df_test_user_long,
+            user_id_key=self.user_id_key,
+        )
+
+        parallel_analysis_node = ParallelAnalysisNode(
+            analysis_input=analysis_input,
+            delta=0.000001,
+            n_users_for_eval=1000,
+            num_bootstrap_resampling_times=100,
+            eps_computation_tasks_num=2,
+        )
+
+        outputs = parallel_analysis_node.compute_outputs()
 
         self.assertLessEqual(float(outputs["eps"]), 0.1)
         self.assertLessEqual(float(outputs["accuracy"]), 0.51)
