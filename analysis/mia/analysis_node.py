@@ -30,7 +30,6 @@ class AnalysisNodeOutput(BaseAnalysisOutput):
     A dataclass to encapsulate the outputs of AnalsyisNode.
     Attributes:
         eps (float): Epsilon value at the TPR=1% UB or LB threshold depending on attack settings.
-        eps_geo_split (float): Epsilon value at the TPR=1% UB threshold for geographical split.
         eps_lb (float): Lower bound of epsilon.
         eps_fpr_max_ub (float): Maximum upper bound of epsilon for FPR.
         eps_fpr_lb (List[float]): List of lower bound epsilon values for various FPRs.
@@ -49,7 +48,6 @@ class AnalysisNodeOutput(BaseAnalysisOutput):
 
     # Empirical epislons
     eps: float  # epsilon at TPR=1% UB threshold
-    eps_geo_split: float  # epsilon at TPR=1% UB threshold
     eps_lb: float
     eps_fpr_max_ub: float
     eps_fpr_lb: List[float]
@@ -82,7 +80,6 @@ class AnalysisNode(BaseAnalysisNode):
         n_users_for_eval: number of users to use for computing the metrics
         num_bootstrap_resampling_times: length of array used to generate metric arrays
         use_upper_bound: boolean for whether to compute epsilon at the upper-bound of CI
-            (true as default for geo-split; otherwise, use_lower_bound)
         cap_eps: boolean for whether to cap large epsilon values to log(size of scores)
         show_progress: boolean for whether to show tqdm progress bar
         with_timer: boolean for whether to show timer for analysis node
@@ -177,7 +174,6 @@ class AnalysisNode(BaseAnalysisNode):
         Returns:
             AnalysisNodeOutput dataclass with fields:
             "eps": epsilon at TPR=1% UB threshold if use_upper_bound is True, else epsilon at TPR=1% LB threshold
-            "eps_geo_split": epsilon at TPR=1% UB Threshold
             "eps_fpr_max_lb", "eps_fpr_lb", "eps_fpr_ub": epsilon at various false positive rate:
             "eps_tpr_lb", "eps_tpr_ub": epsilon at various true positive rates
             "eps_ci": epsilon calculate with Clopper-Pearson confidence interval
@@ -241,7 +237,6 @@ class AnalysisNode(BaseAnalysisNode):
 
         outputs = AnalysisNodeOutput(
             eps=eps_tpr_boundary[0],  # epsilon at TPR=1% UB threshold
-            eps_geo_split=eps_tpr_ub[0],  # epsilon at TPR=1% UB threshold
             eps_lb=eps_tpr_lb[0],
             eps_fpr_max_ub=np.nanmax(eps_fpr_ub),
             eps_fpr_lb=list(eps_fpr_lb),

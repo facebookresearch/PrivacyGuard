@@ -128,9 +128,6 @@ class TestParallelAnalysisNode(unittest.TestCase):
         analysis_outputs_dict = self.parallel_analysis_node.compute_outputs()
         self.assertIsInstance(analysis_outputs_dict, dict)
         self.assertIsInstance(analysis_outputs_dict["eps"], (float, np.floating))
-        self.assertIsInstance(
-            analysis_outputs_dict["eps_geo_split"], (float, np.floating)
-        )
         self.assertIsInstance(analysis_outputs_dict["eps_lb"], (float, np.floating))
         self.assertIsInstance(
             analysis_outputs_dict["eps_fpr_max_ub"], (float, np.floating)

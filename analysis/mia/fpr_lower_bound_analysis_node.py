@@ -89,7 +89,6 @@ class FPRLowerBoundAnalysisNode(AnalysisNode):
         n_users_for_eval: number of users to use for computing the metrics
         num_bootstrap_resampling_times: length of array used to generate metric arrays
         use_upper_bound: boolean for whether to compute epsilon at the upper-bound of CI
-            (true as default for geo-split; otherwise, use_lower_bound)
     """
 
     # lower bound index of 95% confidence interval (based on 1000 data points)
