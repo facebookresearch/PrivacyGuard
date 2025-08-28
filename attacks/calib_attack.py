@@ -29,13 +29,6 @@ class CalibAttack(BaseAttack):
     Lightweight calibration attack
     """
 
-    ADS_MERGE_COLUMNS = [
-        "separable_id",
-        "ad_id",
-        "timestamp",
-        "impression_signature",
-    ]
-
     def __init__(
         self,
         df_hold_out_train: pd.DataFrame,
@@ -45,7 +38,7 @@ class CalibAttack(BaseAttack):
         row_aggregation: AggregationType,
         should_calibrate_scores: bool,
         score_type: CalibScoreType,
-        user_id_key: str = "separable_id",  # Temporarily add default
+        user_id_key: str = "user_id",
         merge_columns: List[str] | None = None,
     ) -> None:
         """
@@ -60,7 +53,7 @@ class CalibAttack(BaseAttack):
             score_type: type of score to use.
             user_id_key: key representing user ids, to use in aggregation.
             merge_columns: list of columns to merge dataset and calibrated
-                dataset on. If None, will use the default columns for the ads usecase.
+                dataset on. If None, will default to user_id_key inly
         """
         self.df_hold_out_train = df_hold_out_train
         self.df_hold_out_test = df_hold_out_test
@@ -74,7 +67,7 @@ class CalibAttack(BaseAttack):
         self.score_type = score_type
 
         self.user_id_key = user_id_key
-        self.merge_columns: List[str] = merge_columns or self.ADS_MERGE_COLUMNS
+        self.merge_columns: List[str] = merge_columns or [user_id_key]
 
         for column in self.merge_columns:
             for columns in [
