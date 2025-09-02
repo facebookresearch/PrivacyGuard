@@ -20,8 +20,7 @@ class BaseAnalysisNode(ABC):
     (1) "run_analysis" to use the data in
     BaseAnalysisInput to produce different output metrics as a structured dataclass and
     (2) "compute_outputs" method that calls "run_analysis" and returns the output as a dictionary.
-    The latter method is useful for merging the outputs of multiple analysis nodes and for maintaining
-    compatibility with the existing ads empirical_dp codebase.
+    The latter method is useful for merging the outputs of multiple analysis nodes
 
     Args:
         analysis_input: BaseAnalysisInput object containing the
