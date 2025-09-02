@@ -17,33 +17,33 @@ from privacy_guard.attacks.lira_attack import LiraAttack
 class TestLiraAttack(unittest.TestCase):
     def setUp(self) -> None:
         self.df_train_merge = {
-            "separable_id": {
-                "0": 100101280879201,
-                "1": 100101280879201,
-                "2": 100101280879201,
-                "3": 100113514211201,
-                "4": 100116367544001,
+            "user_id": {
+                "0": 100001,
+                "1": 100002,
+                "2": 100003,
+                "3": 100004,
+                "4": 100005,
             },
-            "ad_id": {
-                "0": 120202291265480062,
-                "1": 23861966757870570,
-                "2": 120201337204280551,
-                "3": 6371985258328,
-                "4": 120200794973200645,
+            "sample_id": {
+                "0": 101,
+                "1": 102,
+                "2": 103,
+                "3": 104,
+                "4": 105,
             },
             "timestamp": {
-                "0": 1700972528,
-                "1": 1700972594,
-                "2": 1700972528,
-                "3": 1700928130,
-                "4": 1700933560,
+                "0": 1700000000,
+                "1": 1700000001,
+                "2": 1700000002,
+                "3": 1700000003,
+                "4": 1700000004,
             },
-            "impression_signature": {
-                "0": 39367.0,
-                "1": 55814.0,
-                "2": 304.0,
-                "3": 8246.0,
-                "4": 8514.0,
+            "hash_id": {
+                "0": 1.0,
+                "1": 20.0,
+                "2": 300.0,
+                "3": 4000.0,
+                "4": 50000.0,
             },
             "score_orig": {"0": 0.2, "1": 0.4, "2": 0.5, "3": 0.67, "4": 0.99},
             "score_mean": {"0": 0.2, "1": 0.4, "2": 0.5, "3": 0.67, "4": 0.99},
@@ -56,7 +56,7 @@ class TestLiraAttack(unittest.TestCase):
         }
         self.df_train_merge = pd.DataFrame.from_dict(self.df_train_merge)
 
-        self.user_id_key = "separable_id"
+        self.user_id_key = "user_id"
 
         self.lira_attack = LiraAttack(
             df_train_merge=self.df_train_merge,

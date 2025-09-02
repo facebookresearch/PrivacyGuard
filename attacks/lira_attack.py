@@ -33,7 +33,7 @@ class LiraAttack(BaseAttack):
         df_train_merge: pd.DataFrame,
         df_test_merge: pd.DataFrame,
         row_aggregation: AggregationType,
-        user_id_key: str = "separable_id",  # Temporarily add default
+        user_id_key: str = "user_id",
         use_fixed_variance: bool = False,
         std_dev_type: str = "global",
         online_attack: bool = False,
