@@ -7,7 +7,7 @@ from typing import cast
 import pandas as pd
 from privacy_guard.analysis.base_analysis_node import BaseAnalysisNode
 from privacy_guard.analysis.base_analysis_output import BaseAnalysisOutput
-from privacy_guard.analysis.reference_model_comparison_input import (
+from privacy_guard.analysis.extraction.reference_model_comparison_input import (
     ReferenceModelComparisonInput,
 )
 

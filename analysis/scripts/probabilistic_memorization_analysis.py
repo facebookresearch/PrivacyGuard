@@ -14,10 +14,10 @@ import logging
 from typing import List, Optional
 
 import pandas as pd
-from privacy_guard.analysis.probabilistic_memorization_analysis_input import (
+from privacy_guard.analysis.extraction.probabilistic_memorization_analysis_input import (
     ProbabilisticMemorizationAnalysisInput,
 )
-from privacy_guard.analysis.probabilistic_memorization_analysis_node import (
+from privacy_guard.analysis.extraction.probabilistic_memorization_analysis_node import (
     ProbabilisticMemorizationAnalysisNode,
 )
 

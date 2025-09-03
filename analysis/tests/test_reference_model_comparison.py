@@ -6,10 +6,10 @@ import unittest
 
 import pandas as pd
 
-from privacy_guard.analysis.reference_model_comparison_input import (
+from privacy_guard.analysis.extraction.reference_model_comparison_input import (
     ReferenceModelComparisonInput,
 )
-from privacy_guard.analysis.reference_model_comparison_node import (
+from privacy_guard.analysis.extraction.reference_model_comparison_node import (
     ReferenceModelComparisonNode,
     ReferenceModelComparisonNodeOutput,
 )
