@@ -8,7 +8,7 @@ from typing import cast, Dict, List, Optional
 import pandas as pd
 from privacy_guard.analysis.base_analysis_node import BaseAnalysisNode
 from privacy_guard.analysis.base_analysis_output import BaseAnalysisOutput
-from privacy_guard.analysis.probabilistic_memorization_analysis_input import (
+from privacy_guard.analysis.extraction.probabilistic_memorization_analysis_input import (
     ProbabilisticMemorizationAnalysisInput,
 )
 
