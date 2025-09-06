@@ -438,17 +438,3 @@ class TestMiaResults(unittest.TestCase):
                 self.assertFalse(
                     any("invalid value" in str(warning.message) for warning in w)
                 )
-
-        # test that warnings are suppressed when compute_epsilon_at_error_thresholds is called
-        with patch.object(MIAResults, "get_tpr_fpr") as mock_get_tpr_fpr:
-            mock_get_tpr_fpr.return_value = (tpr, fpr)
-            with warnings.catch_warnings(record=True) as w:
-                self.mia_results.compute_epsilon_at_error_thresholds(
-                    delta=delta, error_thresholds=threshold
-                )
-                self.assertFalse(
-                    any("divide by zero" in str(warning.message) for warning in w)
-                )
-                self.assertFalse(
-                    any("invalid value" in str(warning.message) for warning in w)
-                )

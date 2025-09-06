@@ -7,6 +7,7 @@ from typing import List
 
 import numpy as np
 import torch
+from numpy.typing import NDArray
 from privacy_guard.analysis.base_analysis_output import BaseAnalysisOutput
 from privacy_guard.analysis.mia.analysis_node import AnalysisNode
 
@@ -27,39 +28,36 @@ class FPRLowerBoundAnalysisNodeOutput(BaseAnalysisOutput):
         eps (float): Epsilon value at the TPR=1% UB threshold.
         eps_fpr_lb (List[float]): List of lower bound epsilon values at various FPRs.
         eps_fpr_ub (List[float]): List of upper bound epsilon values at various FPRs.
-        eps_ci (float): Empirical epsilon computed using the Clopper-Pearson CI method.
+        eps_cp (float): Empirical epsilon computed using the Clopper-Pearson CI method.
         eps_mean (float): Mean epsilon value.
         eps_mean_lb (float): Lower bound of the mean epsilon value.
         eps_mean_ub (float): Upper bound of the mean epsilon value.
         accuracy (float): Mean accuracy of the attack.
-        accuracy_lb (float): Lower bound of the accuracy.
-        accuracy_ub (float): Upper bound of the accuracy.
-        acu (float): Mean area under the curve (AUC) of the attack.
-        auc_lb (float): Lower bound of the AUC.
-        auc_ub (float): Upper bound of the AUC.
+        accuracy_ci (List[float]): Confidence interval for the accuracy, represented as [lower_bound, upper_bound].
+        auc (float): Mean area under the curve (AUC) of the attack.
+        auc_ci (List[float]): Confidence interval for the AUC, represented as [lower_bound, upper_bound].
         data_size (dict[str, int]): Size of the training, test dataset and bootstrap sample size.
     """
 
     eps: float  # epsilon at TPR=1% UB threshold
     eps_fpr_lb: List[float]
     eps_fpr_ub: List[float]
-    eps_ci: float
+    eps_cp: float
     eps_mean: float
     eps_mean_lb: float
     eps_mean_ub: float
     accuracy: float
-    accuracy_lb: float
-    accuracy_ub: float
+    accuracy_ci: List[float]
     auc: float
-    auc_lb: float
-    auc_ub: float
+    auc_ci: List[float]
     data_size: dict[
         str, int
     ]  # size of the training, test dataset and bootstrap sample size
 
 
-# pyre-fixme[24]: Generic type `np.ndarray` expects 2 type parameters.
-def compute_metric_mean_with_ci(metric_array: np.ndarray) -> tuple[float, float, float]:
+def compute_metric_mean_with_ci(
+    metric_array: NDArray[float],
+) -> tuple[float, float, float]:
     # TODO: Identify descriptive values for mean, lb, ub when bootstrap fails
 
     metric_mean = metric_array.mean()
@@ -90,12 +88,6 @@ class FPRLowerBoundAnalysisNode(AnalysisNode):
         use_upper_bound: boolean for whether to compute epsilon at the upper-bound of CI
     """
 
-    # lower bound index of 95% confidence interval (based on 1000 data points)
-    LB_INDEX_OF_95_PCT_CI = 24
-
-    # upper bound index of 95% confidence interval (based on 1000 data points)
-    UB_INDEX_OF_95_PCT_CI = -25
-
     def run_analysis(self) -> BaseAnalysisOutput:
         """
         Computes analysis outputs based on the input dataframes.
@@ -105,7 +97,7 @@ class FPRLowerBoundAnalysisNode(AnalysisNode):
         one off metrics like
         epsilon confidence intervals.
 
-        Then, uses "make_acc_auc_epsilon_array" to build lists of
+        Then, uses "_make_metrics_array" to build lists of
         metrics, each computed from random subsets of
         loss_train and loss_test. The length of these lists
         is determined by self._num_bootstrap_resampling_times
@@ -118,9 +110,9 @@ class FPRLowerBoundAnalysisNode(AnalysisNode):
             "eps": empirical epsilon calculated as highest epsilon upper bound from the FPR thresholds
             "eps_fpr_max_lb", "eps_fpr_lb", "eps_fpr_ub": epsilon for various false positive rate:
             "eps_tpr_lb", "eps_tpr_ub": epsilon for various true positive rates:
-            "eps_ci": epsilon calculate with Clopper-Pearson confidence interval:
-            "accuracy", "accuracy_lb", "accuracy_ub": accuracy values
-            "auc", "auc_lb", "auc_ub": area under ROC curve values
+            "eps_cp": epsilon calculate with Clopper-Pearson confidence interval:
+            "accuracy", "accuracy_ci": accuracy values
+            "auc", "auc_ci": area under ROC curve values
             "data_size": dictionary with keys "train_size", "test_size", "bootstrap_size"
         """
         df_train_user = self.analysis_input.df_train_user
@@ -130,7 +122,7 @@ class FPRLowerBoundAnalysisNode(AnalysisNode):
 
         train_size, test_size = score_train.shape[0], score_test.shape[0]
 
-        eps_ci = self._calculate_one_off_eps()  # inherited from AnalysisNode
+        eps_cp = self._calculate_one_off_eps()  # inherited from AnalysisNode
 
         train_size, test_size = score_train.shape[0], score_test.shape[0]
         bootstrap_sample_size = min(train_size, test_size)
@@ -149,37 +141,25 @@ class FPRLowerBoundAnalysisNode(AnalysisNode):
             metric_array=accuracy_array
         )
 
-        # compute eps at TPR thresholds (equally spaced at 1% intervals)
+        # compute eps at FPR thresholds (equally spaced at 1% intervals)
         with self.timer("make_epsilon_at_error_thresholds_array"):
-            metrics_array = self._make_epsilon_at_error_thresholds_array()
-        # compute lb/ub of 95% CI for eps at TPR thresholds
-        eps_fpr = np.array([run[0] for run in metrics_array])
-        eps_fpr.sort(0)
-        # get CI bounds with 95% confidence
+            metrics_array = self._make_metrics_array()  # inherited from AnalysisNode
+        # compute lb/ub of 95% CI for eps at FPR thresholds
+        eps_fpr = np.array([run[2] for run in metrics_array])
+        eps_fpr_lb, eps_fpr_ub = self._compute_ci(eps_fpr)
 
-        ci_lb_index = int(0.025 * self._num_bootstrap_resampling_times) - 1
-        ci_ub_index = int(0.025 * self._num_bootstrap_resampling_times)
-
-        eps_fpr_lb, eps_fpr_ub = (
-            eps_fpr[ci_lb_index, :],
-            eps_fpr[-ci_ub_index, :],
-        )
-
-        # TODO: Switch to fields auc_ci = [auc_lb, auc_ub] and accuracy_ci = [accuracy_lb, accuracy_ub] similar to AnalysisNodeOutput
         outputs = FPRLowerBoundAnalysisNodeOutput(
             eps=np.nanmax(eps_fpr_ub),
             eps_fpr_lb=list(eps_fpr_lb),
             eps_fpr_ub=list(eps_fpr_ub),
-            eps_ci=eps_ci,
+            eps_cp=eps_cp,
             eps_mean=eps_mean,
             eps_mean_lb=eps_mean_lb,
             eps_mean_ub=eps_mean_ub,
             accuracy=accuracy_mean,
-            accuracy_lb=accuracy_mean_lb,
-            accuracy_ub=accuracy_mean_ub,
+            accuracy_ci=[accuracy_mean_lb, accuracy_mean_ub],
             auc=auc_mean,
-            auc_lb=auc_mean_lb,
-            auc_ub=auc_mean_ub,
+            auc_ci=[auc_mean_lb, auc_mean_ub],
             data_size={
                 "train_size": train_size,
                 "test_size": test_size,
@@ -192,10 +172,7 @@ class FPRLowerBoundAnalysisNode(AnalysisNode):
 
         return outputs
 
-    def _make_acc_auc_epsilon_array(
-        self,
-        # pyre-fixme[24]: Generic type `np.ndarray` expects 2 type parameters.
-    ) -> np.ndarray:
+    def _make_acc_auc_epsilon_array(self) -> NDArray[float]:
         """
         Make list of tuples metrics at error thresholds, each of which contains the
         accuracy, AUC, and epsilon values for a given number of samples
@@ -236,51 +213,3 @@ class FPRLowerBoundAnalysisNode(AnalysisNode):
             ]
         )
         return metrics_array
-
-    def _make_epsilon_at_error_thresholds_array(
-        self,
-        # pyre-fixme[24]: Generic type `np.ndarray` expects 2 type parameters.
-    ) -> np.ndarray:
-        """
-        Make list of epsilon at TPR threshold values
-        Returns:
-            np.ndarray of float values
-        """
-        score_train = self.analysis_input.df_train_user["score"]
-        score_test = self.analysis_input.df_test_user["score"]
-
-        loss_train = torch.tensor(score_train.values)
-        loss_test = torch.tensor(score_test.values)
-        # error thresholds set equally spaced at 1% intervals
-        train_size, test_size = score_train.shape[0], score_test.shape[0]
-
-        bootstrap_sample_size = min(train_size, test_size)
-
-        error_thresholds = np.linspace(0.01, 1, 100)
-
-        eps_tpr_array = np.array(
-            [
-                MIAResults(
-                    loss_train[
-                        self._compute_bootstrap_sample_indexes(
-                            train_size, bootstrap_sample_size
-                        )
-                    ],
-                    loss_test[
-                        self._compute_bootstrap_sample_indexes(
-                            test_size, bootstrap_sample_size
-                        )
-                    ],
-                ).compute_epsilon_at_error_thresholds(
-                    self._delta,
-                    # pyre-fixme[6]: For 2nd argument expected `List[float]` but got
-                    #  `ndarray[typing.Any, dtype[typing.Any]]`.
-                    error_thresholds=error_thresholds,
-                )
-                for _ in tqdm(
-                    range(self._num_bootstrap_resampling_times),
-                    disable=not self._show_progress,
-                )
-            ]
-        )
-        return eps_tpr_array

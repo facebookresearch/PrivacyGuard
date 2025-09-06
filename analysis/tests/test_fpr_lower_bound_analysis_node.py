@@ -123,7 +123,7 @@ class TestFPRLowerBoundAnalysisNode(BaseTestAnalysisNode):
 
         outputs = analysis_node.compute_outputs()
 
-        self.assertLessEqual(float(outputs["eps_ci"]), 0.1)
+        self.assertLessEqual(float(outputs["eps_cp"]), 0.1)
         self.assertLessEqual(float(outputs["accuracy"]), 0.51)
         self.assertLessEqual(float(outputs["auc"]), 0.51)
 
@@ -149,7 +149,7 @@ class TestFPRLowerBoundAnalysisNode(BaseTestAnalysisNode):
             )
         )
 
-        self.assertIsInstance(analysis_outputs_dict["eps_ci"], (float, np.floating))
+        self.assertIsInstance(analysis_outputs_dict["eps_cp"], (float, np.floating))
 
         self.assertIsInstance(analysis_outputs_dict["eps_mean"], (float, np.floating))
         self.assertIsInstance(
@@ -160,16 +160,22 @@ class TestFPRLowerBoundAnalysisNode(BaseTestAnalysisNode):
         )
 
         self.assertIsInstance(analysis_outputs_dict["accuracy"], (float, np.floating))
-        self.assertIsInstance(
-            analysis_outputs_dict["accuracy_lb"], (float, np.floating)
-        )
-        self.assertIsInstance(
-            analysis_outputs_dict["accuracy_ub"], (float, np.floating)
+        self.assertIsInstance(analysis_outputs_dict["accuracy_ci"], list)
+        self.assertTrue(
+            all(
+                isinstance(x, (float, np.floating))
+                for x in analysis_outputs_dict["accuracy_ci"]
+            )
         )
 
         self.assertIsInstance(analysis_outputs_dict["auc"], (float, np.floating))
-        self.assertIsInstance(analysis_outputs_dict["auc_lb"], (float, np.floating))
-        self.assertIsInstance(analysis_outputs_dict["auc_ub"], (float, np.floating))
+        self.assertIsInstance(analysis_outputs_dict["auc_ci"], list)
+        self.assertTrue(
+            all(
+                isinstance(x, (float, np.floating))
+                for x in analysis_outputs_dict["auc_ci"]
+            )
+        )
 
         self.assertIsInstance(analysis_outputs_dict["data_size"], dict)
         self.assertTrue(

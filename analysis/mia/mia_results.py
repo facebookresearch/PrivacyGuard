@@ -114,63 +114,6 @@ class MIAResults:
 
         return accuracy, auc_value, emp_eps
 
-    def compute_epsilon_at_error_thresholds(
-        self, delta: float, error_thresholds: NDArray[float]
-    ) -> tuple[list[float], list[float]]:
-        """
-        Compute epsilons at error threshold for MIA attack
-        """
-
-        assert len(error_thresholds) > 1
-
-        tpr, fpr = self.get_tpr_fpr()
-
-        fnr = np.ones(len(tpr)) - tpr
-        tnr = np.ones(len(fpr)) - fpr
-
-        # Divide by zero and invalid value warnings are expectd and occur at certain threshold values
-        # We suppress these warnings to avoid disruptive output logs
-        with np.errstate(divide="ignore", invalid="ignore"):
-            # generate epsilon values from fnr and tnr
-            eps1 = np.log(1 - fnr - delta) - np.log(fpr)
-            eps2 = np.log(tnr - delta) - np.log(fnr)
-
-        # filter out extreme values in eps1 and eps2
-        eps_ub = np.log(self._scores_train.shape[0])
-        eps1[eps1 > eps_ub] = 0.0
-        eps2[eps2 > eps_ub] = 0.0
-
-        eps_fpr_array = []
-        eps_fnr_array = []
-
-        tpr_array = []
-        tnr_array = []
-
-        fpr_indices = self._get_indices_of_error_at_thresholds(
-            fpr, error_thresholds, "fpr"
-        )
-        fnr_indices = self._get_indices_of_error_at_thresholds(
-            fnr, error_thresholds, "fnr"
-        )
-        for i in range(len(error_thresholds)):
-            fpr_idx = fpr_indices[i]
-            # add the tpr and fpr epsilon to outputs
-            tpr_level = tpr[fpr_idx]
-            eps_fpr = eps1[fpr_idx]
-
-            fnr_idx = fnr_indices[i]
-            # add the tnr and frn epsilon to outputs
-            tnr_level = tnr[fnr_idx]
-            eps_fnr = eps2[fnr_idx]
-
-            tpr_array.append(tpr_level)
-            tnr_array.append(tnr_level)
-
-            eps_fpr_array.append(eps_fpr)
-            eps_fnr_array.append(eps_fnr)
-
-        return eps_fpr_array, eps_fnr_array
-
     def compute_acc_auc_ci_epsilon(self, delta: float) -> tuple[float, float, float]:
         """
         Compute accuracy, AUC and empirical epsilon for MIA attack
