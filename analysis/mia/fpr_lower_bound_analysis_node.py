@@ -80,8 +80,7 @@ class FPRLowerBoundAnalysisNode(AnalysisNode):
     required to evaluate the performance of a privacy attack.
 
     Calculate privacy eval metrics by computing epsilons at the lower-bound of 95% confidence interval
-    with FPR (False Positive Rates) thresholds
-    Currently, this method is applied to AAL models
+    with FPR (False Positive Rates) thresholds.
 
     args:
         analysis_input: AnalysisInput object containing the training and testing dataframes

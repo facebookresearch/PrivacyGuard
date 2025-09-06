@@ -289,7 +289,7 @@ class TestBalancedAnalysisNode(unittest.TestCase):
             "eps_fpr_ub",
             "eps_tpr_lb",
             "eps_tpr_ub",
-            "eps_ci",
+            "eps_cp",
             "accuracy",
             "accuracy_ci",
             "auc",

@@ -71,20 +71,17 @@ class MIAResults:
         else:
             raise ValueError(f"Invalid error type: {error_type}")
 
-    def get_tpr_fpr(self) -> tuple[torch.Tensor, torch.Tensor]:
+    def get_tpr_fpr(self) -> tuple[NDArray[float], NDArray[float]]:
         """
-        Computes true positive rate and true negative rate,, useful for plotting
-        ROC curves and computing AUC.
+        Computes true positive rate and true negative rate given scores and labels indicating membership.
         """
-        labels_ordered, _ = self._get_scores_and_labels_ordered()
 
-        true_positive_rate = (
-            torch.cumsum(labels_ordered == 1, 0) / self._scores_train.shape[0]
+        scores: torch.Tensor = torch.cat([self._scores_train, self._scores_test])
+        labels = torch.cat(
+            [torch.ones_like(self._scores_train), torch.zeros_like(self._scores_test)]
         )
-        false_positive_rate = (
-            torch.cumsum(labels_ordered == 0, 0) / self._scores_test.shape[0]
-        )
-        return true_positive_rate, false_positive_rate
+        fpr, tpr, _ = roc_curve(labels, scores)
+        return tpr, fpr
 
     def compute_acc_auc_epsilon(self, delta: float) -> tuple[float, float, float]:
         """
@@ -92,7 +89,6 @@ class MIAResults:
         """
 
         tpr, fpr = self.get_tpr_fpr()
-        tpr, fpr = tpr.numpy(), fpr.numpy()
 
         fnr = 1 - tpr
         tnr = 1 - fpr
@@ -127,12 +123,10 @@ class MIAResults:
 
         assert len(error_thresholds) > 1
 
-        _tpr, _fpr = self.get_tpr_fpr()
-        tpr: NDArray[float] = _tpr.numpy()
-        fpr: NDArray[float] = _fpr.numpy()
+        tpr, fpr = self.get_tpr_fpr()
 
-        fnr = 1 - tpr
-        tnr = 1 - fpr
+        fnr = np.ones(len(tpr)) - tpr
+        tnr = np.ones(len(fpr)) - fpr
 
         # Divide by zero and invalid value warnings are expectd and occur at certain threshold values
         # We suppress these warnings to avoid disruptive output logs
@@ -271,15 +265,33 @@ class MIAResults:
         error_threshold: NDArray[float],
         cap_eps: bool = True,
         verbose: bool = False,
-    ) -> tuple[np.float64, np.float64, list[np.float64], list[np.float64]]:
+        use_fnr_tnr: bool = False,
+    ) -> tuple[
+        np.float64, np.float64, list[np.float64], list[np.float64], list[np.float64]
+    ]:
         """
-        Compute epsilon at error threshold for MIA attack
+        Compute accuracy and epsilon metrics at thresholds that are determined by bounds on TPR/FPR according to error_threshold.
+        E.g., at error_threshold = 0.01, we compute accuracy and epsilon at a score thresholds that corresponds to the adversary's
+        FPR ~ 1% and TPR ~ 1%.
+
+        Args:
+            delta: float, privacy parameter in (epsilon, delta) differential privacy
+            error_threshold: 1D array of error thresholds
+            cap_eps: bool, whether to cap epsilon values to log(num_users)
+            verbose: bool, whether to print verbose output
+            use_fnr_tnr: bool, whether to use fnr and tnr thresholds in addition to FPR and TPR thresholds
+
+        Returns:
+            accuracy: float, max accuracy across all score thresholds
+            auc_value: float, area under the curve of tpr and fpr rates for all score thresholds
+            eps_fpr_array: list of float, epsilon values using score thresholds corresponding to bounds on FPR
+            eps_tpr_array: list of float, epsilon values using score thresholds corresponding to bounds on TPR
+            eps_max_array: list of float, element-wise maximum of eps_fpr_array and eps_tpr_array (and eps_fpr_array and eps_fnr_array if use_fnr_tnr is True)
         """
 
         assert len(error_threshold) > 1
 
         tpr, fpr = self.get_tpr_fpr()
-        tpr, fpr = tpr.numpy(), fpr.numpy()
 
         accuracy: np.float64 = np.max(1 - (fpr + (1 - tpr)) / 2)
         auc_value = auc(fpr, tpr)
@@ -299,45 +311,40 @@ class MIAResults:
             eps1[eps1 > eps_ub] = eps_ub
             eps2[eps2 > eps_ub] = eps_ub
 
-        eps_fpr_array = []
-        eps_max_array = []
-
-        tpr_array = []
-        tnr_array = []
+        if use_fnr_tnr:
+            error_threshold = error_threshold[error_threshold < 1.0]
 
         fpr_indices = self._get_indices_of_error_at_thresholds(
             fpr, error_threshold, "fpr"
         )
-        fnr_indices = self._get_indices_of_error_at_thresholds(
-            fnr, error_threshold, "fnr"
+        tpr_indices = self._get_indices_of_error_at_thresholds(
+            tpr, error_threshold, "tpr"
         )
 
-        for i in range(len(error_threshold)):
-            fpr_idx = fpr_indices[i]
-            tpr_level = tpr[fpr_idx]
-            eps_fpr = eps1[fpr_idx]
+        eps_fpr_array = eps1[fpr_indices]
+        eps_tpr_array = eps1[tpr_indices]
+        tpr_array = tpr[tpr_indices]
+        fpr_array = fpr[fpr_indices]
+        eps_max_array = np.fmax(eps_fpr_array, eps_tpr_array)
 
-            fnr_idx = fnr_indices[i]
-            tnr_level = tnr[fnr_idx]
-            eps_fnr = eps2[fnr_idx]
-
-            # pyre-fixme[6]: For 1st argument expected `SupportsRichComparisonT` but
-            #  got `Union[ndarray[Any, dtype[Any]], int]`.
-            # pyre-fixme[6]: For 2nd argument expected `SupportsRichComparisonT` but
-            #  got `Union[ndarray[Any, dtype[Any]], int]`.
-            eps_max = max(eps_fnr, eps_fpr)
-
-            tpr_array.append(tpr_level)
-            tnr_array.append(tnr_level)
-
-            eps_fpr_array.append(eps_fpr)
-            eps_max_array.append(eps_max)
+        if use_fnr_tnr:
+            fnr_indices = self._get_indices_of_error_at_thresholds(
+                fnr, error_threshold, "fnr"
+            )
+            tnr_indices = self._get_indices_of_error_at_thresholds(
+                tnr, error_threshold, "tnr"
+            )
+            eps_fnr_array = eps2[fnr_indices]
+            eps_tnr_array = eps2[tnr_indices]
+            eps_max_array = np.nanmax(
+                [eps_max_array, eps_fnr_array, eps_tnr_array], axis=0
+            )
 
         if verbose:
             logger.info(
                 "\n".join(
                     [
-                        f"eps@fpr{thre}[tpr={tpr_array[i]:.3f}]: {eps_fpr_array[i]:.3f} eps@max{thre}[tnr={tnr_array[i]:.3f}]: {eps_max_array[i]:.3f}"
+                        f"eps@fpr{thre}[tpr={tpr_array[i]:.3f}]: {eps_fpr_array[i]:.3f} eps@max{thre}[fpr={fpr_array[i]:.3f}]: {eps_max_array[i]:.3f}"
                         for i, thre in enumerate(error_threshold)
                     ]
                 )
@@ -346,8 +353,9 @@ class MIAResults:
         auc_value = np.float64(auc_value)
         eps_fpr_array = [np.float64(x) for x in eps_fpr_array]
         eps_max_array = [np.float64(x) for x in eps_max_array]
+        eps_tpr_array = [np.float64(x) for x in eps_tpr_array]
 
-        return accuracy, auc_value, eps_fpr_array, eps_max_array
+        return accuracy, auc_value, eps_fpr_array, eps_tpr_array, eps_max_array
 
     def compute_eps_at_tpr_threshold(
         self,
@@ -363,7 +371,6 @@ class MIAResults:
         assert len(tpr_threshold) > 1
 
         tpr, fpr = self.get_tpr_fpr()
-        tpr, fpr = tpr.numpy(), fpr.numpy()
 
         fnr = 1 - tpr
         tnr = 1 - fpr
