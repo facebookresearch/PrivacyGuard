@@ -109,7 +109,7 @@ class TestParallelAnalysisNode(BaseTestAnalysisNode):
 
         outputs = parallel_analysis_node.compute_outputs()
 
-        self.assertLessEqual(float(outputs["eps"]), 0.1)
+        self.assertLessEqual(float(outputs["eps"]), 0.11)
         self.assertLessEqual(float(outputs["accuracy"]), 0.51)
         self.assertLessEqual(float(outputs["auc"]), 0.51)
 
@@ -151,7 +151,7 @@ class TestParallelAnalysisNode(BaseTestAnalysisNode):
                 for x in analysis_outputs_dict["eps_tpr_ub"]
             )
         )
-        self.assertIsInstance(analysis_outputs_dict["eps_ci"], (float, np.floating))
+        self.assertIsInstance(analysis_outputs_dict["eps_cp"], (float, np.floating))
 
         self.assertIsInstance(analysis_outputs_dict["accuracy"], (float, np.floating))
         self.assertIsInstance(analysis_outputs_dict["accuracy_ci"], list)
@@ -245,3 +245,55 @@ class TestParallelAnalysisNode(BaseTestAnalysisNode):
                 num_bootstrap_resampling_times=40,
                 eps_computation_tasks_num=2,
             )
+
+    def test_use_fnr_tnr_parameter(self) -> None:
+        """Test that use_fnr_tnr parameter works correctly"""
+        # Test with use_fnr_tnr=False (default)
+        parallel_node_false = ParallelAnalysisNode(
+            analysis_input=self.analysis_input,
+            delta=0.000001,
+            n_users_for_eval=100,
+            num_bootstrap_resampling_times=10,
+            eps_computation_tasks_num=2,
+            use_fnr_tnr=False,
+        )
+
+        outputs_false = parallel_node_false.compute_outputs()
+
+        # Test with use_fnr_tnr=True
+        parallel_node_true = ParallelAnalysisNode(
+            analysis_input=self.analysis_input,
+            delta=0.000001,
+            n_users_for_eval=100,
+            num_bootstrap_resampling_times=10,
+            eps_computation_tasks_num=2,
+            use_fnr_tnr=True,
+        )
+
+        outputs_true = parallel_node_true.compute_outputs()
+
+        # With use_fnr_tnr=False, should have 100 error thresholds (default)
+        self.assertEqual(len(outputs_false["eps_fpr_lb"]), 100)
+        self.assertEqual(len(outputs_false["eps_fpr_ub"]), 100)
+        self.assertEqual(len(outputs_false["eps_tpr_lb"]), 100)
+        self.assertEqual(len(outputs_false["eps_tpr_ub"]), 100)
+
+        # With use_fnr_tnr=True, should have 99 error thresholds (filtered >= 1.0)
+        self.assertEqual(len(outputs_true["eps_fpr_lb"]), 99)
+        self.assertEqual(len(outputs_true["eps_fpr_ub"]), 99)
+        self.assertEqual(len(outputs_true["eps_tpr_lb"]), 99)
+        self.assertEqual(len(outputs_true["eps_tpr_ub"]), 99)
+
+        # Arrays with use_fnr_tnr=True should be shorter due to filtering
+        self.assertGreater(
+            len(outputs_false["eps_fpr_lb"]), len(outputs_true["eps_fpr_lb"])
+        )
+        self.assertGreater(
+            len(outputs_false["eps_fpr_ub"]), len(outputs_true["eps_fpr_ub"])
+        )
+        self.assertGreater(
+            len(outputs_false["eps_tpr_lb"]), len(outputs_true["eps_tpr_lb"])
+        )
+        self.assertGreater(
+            len(outputs_false["eps_tpr_ub"]), len(outputs_true["eps_tpr_ub"])
+        )

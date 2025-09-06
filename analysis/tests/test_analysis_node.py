@@ -81,7 +81,6 @@ class TestAnalysisNode(BaseTestAnalysisNode):
         test_timer_analysis_node.compute_outputs()
 
         self.assertIn("make_metrics_array", test_timer_analysis_node.get_timer_stats())
-        self.assertIn("make_eps_tpr_array", test_timer_analysis_node.get_timer_stats())
 
     def test_timer_disabled(self) -> None:
         """
@@ -99,9 +98,6 @@ class TestAnalysisNode(BaseTestAnalysisNode):
 
         self.assertNotIn(
             "make_metrics_array", test_timer_analysis_node.get_timer_stats()
-        )
-        self.assertNotIn(
-            "make_eps_tpr_array", test_timer_analysis_node.get_timer_stats()
         )
 
     def test_turn_cap_eps_on(self) -> None:
@@ -193,7 +189,7 @@ class TestAnalysisNode(BaseTestAnalysisNode):
 
         outputs = self.analysis_node.compute_outputs()
 
-        self.assertLessEqual(float(outputs["eps_ci"]), 0.1)
+        self.assertLessEqual(float(outputs["eps_cp"]), 0.1)
         self.assertLessEqual(float(outputs["accuracy"]), 0.51)
         self.assertLessEqual(float(outputs["auc"]), 0.51)
 
@@ -235,7 +231,21 @@ class TestAnalysisNode(BaseTestAnalysisNode):
                 for x in analysis_outputs_dict["eps_tpr_ub"]
             )
         )
-        self.assertIsInstance(analysis_outputs_dict["eps_ci"], (float, np.floating))
+        self.assertIsInstance(analysis_outputs_dict["eps_max_lb"], list)
+        self.assertTrue(
+            all(
+                isinstance(x, (float, np.floating))
+                for x in analysis_outputs_dict["eps_max_lb"]
+            )
+        )
+        self.assertIsInstance(analysis_outputs_dict["eps_max_ub"], list)
+        self.assertTrue(
+            all(
+                isinstance(x, (float, np.floating))
+                for x in analysis_outputs_dict["eps_max_ub"]
+            )
+        )
+        self.assertIsInstance(analysis_outputs_dict["eps_cp"], (float, np.floating))
 
         self.assertIsInstance(analysis_outputs_dict["accuracy"], (float, np.floating))
         self.assertIsInstance(analysis_outputs_dict["accuracy_ci"], list)
@@ -304,7 +314,7 @@ class TestAnalysisNode(BaseTestAnalysisNode):
 
         self.assertIn("train_scores", outputs)
         self.assertIn("test_scores", outputs)
-        self.assertIn("eps_ci", outputs)
+        self.assertIn("eps_cp", outputs)
         self.assertIn("accuracy", outputs)
         self.assertIn("auc", outputs)
 
@@ -328,3 +338,122 @@ class TestAnalysisNode(BaseTestAnalysisNode):
                 n_users_for_eval=-1,
                 num_bootstrap_resampling_times=40,
             )
+
+    def test_use_fnr_tnr_parameter_default(self) -> None:
+        """Test that use_fnr_tnr defaults to False and works properly"""
+        analysis_node = AnalysisNode(
+            analysis_input=self.analysis_input,
+            delta=0.000001,
+            n_users_for_eval=100,
+            num_bootstrap_resampling_times=10,
+            # use_fnr_tnr not specified, should default to False
+        )
+
+        outputs = analysis_node.compute_outputs()
+
+        # Should have normal behavior with all epsilon arrays having expected length
+        self.assertIsInstance(outputs["eps_fpr_lb"], list)
+        self.assertIsInstance(outputs["eps_fpr_ub"], list)
+        self.assertIsInstance(outputs["eps_tpr_lb"], list)
+        self.assertIsInstance(outputs["eps_tpr_ub"], list)
+        self.assertIsInstance(outputs["eps_max_lb"], list)
+        self.assertIsInstance(outputs["eps_max_ub"], list)
+
+        # All arrays should have same length (100 error thresholds by default)
+        self.assertEqual(len(outputs["eps_fpr_lb"]), 100)
+        self.assertEqual(len(outputs["eps_fpr_ub"]), 100)
+        self.assertEqual(len(outputs["eps_tpr_lb"]), 100)
+        self.assertEqual(len(outputs["eps_tpr_ub"]), 100)
+        self.assertEqual(len(outputs["eps_max_lb"]), 100)
+        self.assertEqual(len(outputs["eps_max_ub"]), 100)
+
+    def test_use_fnr_tnr_parameter_true(self) -> None:
+        """Test that use_fnr_tnr=True filters error thresholds properly"""
+        analysis_node = AnalysisNode(
+            analysis_input=self.analysis_input,
+            delta=0.000001,
+            n_users_for_eval=100,
+            num_bootstrap_resampling_times=10,
+            use_fnr_tnr=True,
+        )
+
+        outputs = analysis_node.compute_outputs()
+
+        # Should have normal behavior with all epsilon arrays
+        self.assertIsInstance(outputs["eps_fpr_lb"], list)
+        self.assertIsInstance(outputs["eps_fpr_ub"], list)
+        self.assertIsInstance(outputs["eps_tpr_lb"], list)
+        self.assertIsInstance(outputs["eps_tpr_ub"], list)
+        self.assertIsInstance(outputs["eps_max_lb"], list)
+        self.assertIsInstance(outputs["eps_max_ub"], list)
+
+        # With use_fnr_tnr=True, error thresholds >= 1.0 should be filtered
+        # Default error thresholds are np.linspace(0.01, 1, 100)
+        # After filtering (< 1.0), we expect 99 elements
+        self.assertEqual(len(outputs["eps_fpr_lb"]), 99)
+        self.assertEqual(len(outputs["eps_fpr_ub"]), 99)
+        self.assertEqual(len(outputs["eps_tpr_lb"]), 99)
+        self.assertEqual(len(outputs["eps_tpr_ub"]), 99)
+        self.assertEqual(len(outputs["eps_max_lb"]), 99)
+        self.assertEqual(len(outputs["eps_max_ub"]), 99)
+
+    def test_use_fnr_tnr_parameter_comparison(self) -> None:
+        """Test comparison between use_fnr_tnr=False and use_fnr_tnr=True"""
+        # Set random seed to ensure deterministic bootstrap sampling
+        np.random.seed(42)
+
+        # Test with use_fnr_tnr=False
+        analysis_node_false = AnalysisNode(
+            analysis_input=self.analysis_input,
+            delta=0.000001,
+            n_users_for_eval=100,
+            num_bootstrap_resampling_times=10,
+            use_fnr_tnr=False,
+        )
+
+        outputs_false = analysis_node_false.compute_outputs()
+
+        # Reset seed to ensure same bootstrap sampling for the second run
+        np.random.seed(42)
+
+        # Test with use_fnr_tnr=True
+        analysis_node_true = AnalysisNode(
+            analysis_input=self.analysis_input,
+            delta=0.000001,
+            n_users_for_eval=100,
+            num_bootstrap_resampling_times=10,
+            use_fnr_tnr=True,
+        )
+
+        outputs_true = analysis_node_true.compute_outputs()
+
+        # Arrays with use_fnr_tnr=True should be shorter due to filtering
+        self.assertGreater(
+            len(outputs_false["eps_fpr_lb"]), len(outputs_true["eps_fpr_lb"])
+        )
+        self.assertGreater(
+            len(outputs_false["eps_fpr_ub"]), len(outputs_true["eps_fpr_ub"])
+        )
+        self.assertGreater(
+            len(outputs_false["eps_tpr_lb"]), len(outputs_true["eps_tpr_lb"])
+        )
+        self.assertGreater(
+            len(outputs_false["eps_tpr_ub"]), len(outputs_true["eps_tpr_ub"])
+        )
+        self.assertGreater(
+            len(outputs_false["eps_max_lb"]), len(outputs_true["eps_max_lb"])
+        )
+        self.assertGreater(
+            len(outputs_false["eps_max_ub"]), len(outputs_true["eps_max_ub"])
+        )
+
+        # eps_cp should be the same in both cases (computed separately)
+        self.assertAlmostEqual(
+            outputs_false["eps_cp"], outputs_true["eps_cp"], places=10
+        )
+
+        # Other metrics should be the same
+        self.assertAlmostEqual(
+            outputs_false["accuracy"], outputs_true["accuracy"], places=10
+        )
+        self.assertAlmostEqual(outputs_false["auc"], outputs_true["auc"], places=10)
