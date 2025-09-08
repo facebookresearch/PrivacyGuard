@@ -140,6 +140,191 @@ class TestMiaResults(unittest.TestCase):
         self.assertNotIn("TypeError", log_capture.actual())
 
     @test_log_assert
+    def test_compute_metrics_at_error_threshold_use_fnr_tnr_false(
+        self, log_capture: LogCapture
+    ) -> None:
+        """Test default behavior when use_fnr_tnr=False (default)"""
+        error_thresholds: np.ndarray = np.linspace(0.01, 1, 100)
+
+        (
+            accuracy,
+            auc_value,
+            eps_fpr_array,
+            eps_tpr_array,
+            eps_max_array,
+        ) = self.mia_results.compute_metrics_at_error_threshold(
+            delta=0.1, error_threshold=error_thresholds, use_fnr_tnr=False, verbose=True
+        )
+
+        self.assertLessEqual(0, accuracy)
+        self.assertLessEqual(accuracy, 1)
+        self.assertLessEqual(0, auc_value)
+        self.assertLessEqual(auc_value, 1)
+        self.assertEqual(len(eps_fpr_array), len(error_thresholds))
+        self.assertEqual(len(eps_tpr_array), len(error_thresholds))
+        self.assertEqual(len(eps_max_array), len(error_thresholds))
+
+        # eps_max should be the max of eps_fpr and eps_tpr when use_fnr_tnr=False
+        for i in range(len(error_thresholds)):
+            expected_max = np.fmax(eps_fpr_array[i], eps_tpr_array[i])
+            # Handle NaN values: both should be NaN or both should be equal finite values
+            if np.isnan(expected_max) and np.isnan(eps_max_array[i]):
+                # Both are NaN, this is expected and acceptable
+                continue
+            else:
+                self.assertAlmostEqual(eps_max_array[i], expected_max, places=10)
+
+        self.assertNotIn("TypeError", log_capture.actual())
+
+    @test_log_assert
+    def test_compute_metrics_at_error_threshold_use_fnr_tnr_true(
+        self, log_capture: LogCapture
+    ) -> None:
+        """Test behavior when use_fnr_tnr=True"""
+        error_thresholds: np.ndarray = np.linspace(0.01, 1, 100)
+
+        (
+            accuracy,
+            auc_value,
+            eps_fpr_array,
+            eps_tpr_array,
+            eps_max_array,
+        ) = self.mia_results.compute_metrics_at_error_threshold(
+            delta=0.1, error_threshold=error_thresholds, use_fnr_tnr=True, verbose=True
+        )
+
+        self.assertLessEqual(0, accuracy)
+        self.assertLessEqual(accuracy, 1)
+        self.assertLessEqual(0, auc_value)
+        self.assertLessEqual(auc_value, 1)
+
+        # When use_fnr_tnr=True, error thresholds >= 1.0 are filtered out
+        filtered_thresholds = error_thresholds[error_thresholds < 1.0]
+        self.assertEqual(len(eps_fpr_array), len(filtered_thresholds))
+        self.assertEqual(len(eps_tpr_array), len(filtered_thresholds))
+        self.assertEqual(len(eps_max_array), len(filtered_thresholds))
+
+        # Arrays should be shorter than original when filtering occurs
+        if len(filtered_thresholds) < len(error_thresholds):
+            self.assertLess(len(eps_fpr_array), len(error_thresholds))
+            self.assertLess(len(eps_tpr_array), len(error_thresholds))
+            self.assertLess(len(eps_max_array), len(error_thresholds))
+
+        self.assertNotIn("TypeError", log_capture.actual())
+
+    def test_compute_metrics_at_error_threshold_filtering_behavior(self) -> None:
+        """Test that use_fnr_tnr=True properly filters out thresholds >= 1.0"""
+        # Create error thresholds that include values >= 1.0
+        error_thresholds_with_1: np.ndarray = np.array([0.1, 0.5, 0.9, 1.0, 1.1])
+
+        # Test with use_fnr_tnr=False (should use all thresholds)
+        (
+            _,
+            _,
+            eps_fpr_false,
+            eps_tpr_false,
+            eps_max_false,
+        ) = self.mia_results.compute_metrics_at_error_threshold(
+            delta=0.1, error_threshold=error_thresholds_with_1, use_fnr_tnr=False
+        )
+
+        # Test with use_fnr_tnr=True (should filter out >= 1.0)
+        (
+            _,
+            _,
+            eps_fpr_true,
+            eps_tpr_true,
+            eps_max_true,
+        ) = self.mia_results.compute_metrics_at_error_threshold(
+            delta=0.1, error_threshold=error_thresholds_with_1, use_fnr_tnr=True
+        )
+
+        # With use_fnr_tnr=False, should have 5 elements
+        self.assertEqual(len(eps_fpr_false), 5)
+        self.assertEqual(len(eps_tpr_false), 5)
+        self.assertEqual(len(eps_max_false), 5)
+
+        # With use_fnr_tnr=True, should have 3 elements (filtered out 1.0 and 1.1)
+        self.assertEqual(len(eps_fpr_true), 3)
+        self.assertEqual(len(eps_tpr_true), 3)
+        self.assertEqual(len(eps_max_true), 3)
+
+        # The first 3 elements should be the same for both cases (for thresholds < 1.0)
+        for i in range(3):
+            self.assertTrue(
+                (np.isnan(eps_fpr_false[i]) and np.isnan(eps_fpr_true[i]))
+                or np.isclose(eps_fpr_false[i], eps_fpr_true[i], atol=1e-10)
+            )
+            self.assertTrue(
+                (np.isnan(eps_tpr_false[i]) and np.isnan(eps_tpr_true[i]))
+                or np.isclose(eps_tpr_false[i], eps_tpr_true[i], atol=1e-10)
+            )
+
+    def test_compute_metrics_at_error_threshold_eps_max_calculation(self) -> None:
+        """Test that eps_max includes FNR/TNR contributions when use_fnr_tnr=True"""
+        error_thresholds: np.ndarray = np.array([0.1, 0.3, 0.5])
+
+        # Get results with use_fnr_tnr=False
+        (
+            _,
+            _,
+            eps_fpr_false,
+            eps_tpr_false,
+            eps_max_false,
+        ) = self.mia_results.compute_metrics_at_error_threshold(
+            delta=0.1, error_threshold=error_thresholds, use_fnr_tnr=False
+        )
+
+        # Get results with use_fnr_tnr=True
+        (
+            _,
+            _,
+            eps_fpr_true,
+            eps_tpr_true,
+            eps_max_true,
+        ) = self.mia_results.compute_metrics_at_error_threshold(
+            delta=0.1, error_threshold=error_thresholds, use_fnr_tnr=True
+        )
+
+        # eps_fpr and eps_tpr should be the same in both cases
+        for i in range(len(error_thresholds)):
+            self.assertTrue(
+                (np.isnan(eps_fpr_false[i]) and np.isnan(eps_fpr_true[i]))
+                or np.isclose(eps_fpr_false[i], eps_fpr_true[i], atol=1e-10)
+            )
+            self.assertTrue(
+                (np.isnan(eps_tpr_false[i]) and np.isnan(eps_tpr_true[i]))
+                or np.isclose(eps_tpr_false[i], eps_tpr_true[i], atol=1e-10)
+            )
+
+        # With use_fnr_tnr=False: eps_max = max(eps_fpr, eps_tpr)
+        for i in range(len(error_thresholds)):
+            expected_max_false = np.fmax(eps_fpr_false[i], eps_tpr_false[i])
+            self.assertTrue(
+                (np.isnan(eps_max_false[i]) and np.isnan(expected_max_false))
+                or np.isclose(
+                    eps_max_false[i],
+                    expected_max_false,
+                    atol=1e-10,
+                )
+            )
+
+        # With use_fnr_tnr=True: eps_max should be >= max(eps_fpr, eps_tpr)
+        # since it includes additional FNR/TNR contributions
+        for i in range(len(error_thresholds)):
+            min_expected = np.fmax(eps_fpr_true[i], eps_tpr_true[i])
+            # Handle NaN values: if both are NaN, that's acceptable
+            # If only one is NaN, it's an error
+            if np.isnan(min_expected):
+                continue
+            elif not np.isnan(min_expected) and np.isnan(eps_max_true[i]):
+                self.fail(
+                    f"eps_max should not be NaN when eps_fpr or eps_tpr is not NaN. eps_max: {eps_max_true[i]}, eps_fpr: {eps_fpr_true[i]}, eps_tpr: {eps_tpr_true[i]}"
+                )
+            else:
+                self.assertGreaterEqual(eps_max_true[i], min_expected - 1e-10)
+
+    @test_log_assert
     def test_compute_acc_auc_epsilon(self) -> None:
         accuracy, auc_value, emp_eps = self.mia_results.compute_acc_auc_epsilon(
             delta=0.1
@@ -161,6 +346,7 @@ class TestMiaResults(unittest.TestCase):
             accuracy,
             auc_value,
             eps_fpr_array,
+            eps_tpr_array,
             eps_max_array,
         ) = self.mia_results.compute_metrics_at_error_threshold(
             delta=0.1, error_threshold=error_thresholds, verbose=True
@@ -173,6 +359,7 @@ class TestMiaResults(unittest.TestCase):
         self.assertLessEqual(auc_value, 1)
 
         self.assertEqual(len(eps_fpr_array), len(error_thresholds))
+        self.assertEqual(len(eps_tpr_array), len(error_thresholds))
         self.assertEqual(len(eps_max_array), len(error_thresholds))
 
         self.assertNotIn("TypeError", log_capture.actual())
@@ -191,16 +378,17 @@ class TestMiaResults(unittest.TestCase):
 
     def test_suppress_divide_and_invalid_warnings(self) -> None:
         threshold = np.array([0.1, 0.2, 0.3])
-        tpr = torch.tensor([1.0, 1.0, 1.0, 0.5])
-        fpr = torch.tensor([0.0, 0.0, 0.5, 1.0])
+        tpr = np.array([1.0, 1.0, 1.0, 0.5])
+        fpr = np.array([0.0, 0.0, 0.5, 1.0])
         delta = 0.1
 
         # test that these values raise warnings in eps calculation
         fnr = 1 - tpr
         tnr = 1 - fpr
         with warnings.catch_warnings(record=True) as w:
-            eps1 = np.log(1 - fnr - delta) - np.log(fpr)
-            eps2 = np.log(tnr - delta) - np.log(fnr)
+            # These operations should generate warnings for divide by zero and invalid values
+            _ = np.log(1 - fnr - delta) - np.log(fpr)  # eps1
+            _ = np.log(tnr - delta) - np.log(fnr)  # eps2
             self.assertTrue(len(w) > 0)
             self.assertTrue(
                 any("divide by zero" in str(warning.message) for warning in w)
