@@ -75,7 +75,7 @@ class ParallelFPRLowerBoundAnalysisNode(FPRLowerBoundAnalysisNode):
         accuracy, AUC, and epsilon values for a given number of samples.
         The tuples are randomly generated from permutations of subsets of loss_train
         and loss_test.
-        -- A list of epsilons at error thresholds
+        -- A list of epsilons at FPR error thresholds
 
         Args:
             A tuple of train/test filenames, delta, and chunk size (number of bootstrap resampling times)
@@ -109,12 +109,12 @@ class ParallelFPRLowerBoundAnalysisNode(FPRLowerBoundAnalysisNode):
                 )
 
                 metrics_result = mia_results.compute_acc_auc_epsilon(delta=self._delta)
-                eps_fpr_result = mia_results.compute_epsilon_at_error_thresholds(
-                    self._delta, error_thresholds=error_thresholds
+                eps_fpr_result = mia_results.compute_metrics_at_error_threshold(
+                    self._delta, error_threshold=error_thresholds
                 )
 
                 metrics_results.append(metrics_result)
-                eps_fpr_results.append(eps_fpr_result)
+                eps_fpr_results.append(eps_fpr_result[2])
         except Exception as e:
             logger.info(
                 f"An exception occurred when computing acc/auc/epsilon metrics: {e}"
@@ -160,11 +160,10 @@ class ParallelFPRLowerBoundAnalysisNode(FPRLowerBoundAnalysisNode):
         Returns:
             FPRLowerBoundAnalysisNodeOutput dataclass with fields:
             "eps": empirical epsilon calculated as highest epsilon upper bound from the FPR thresholds
-            "eps_fpr_max_lb", "eps_fpr_lb", "eps_fpr_ub": epsilon for various false positive rate:
-            "eps_tpr_lb", "eps_tpr_ub": epsilon for various true positive rates:
-            "eps_ci": epsilon calculate with Clopper-Pearson confidence interval:
-            "accuracy", "accuracy_lb", "accuracy_ub": accuracy values
-            "auc", "auc_lb", "auc_ub": area under ROC curve values
+            "eps_fpr_max_lb", "eps_fpr_lb", "eps_fpr_ub": epsilon for various false positive rate
+            "eps_cp": epsilon calculate with Clopper-Pearson confidence interval
+            "accuracy", "accuracy_ci": accuracy values
+            "auc", "auc_ci": area under ROC curve values
             "data_size": dictionary with keys "train_size", "test_size", "bootstrap_size"
         """
 
@@ -176,7 +175,7 @@ class ParallelFPRLowerBoundAnalysisNode(FPRLowerBoundAnalysisNode):
         bootstrap_sample_size = min(train_size, test_size)
         logger.info(f"Train/Test unique users: {train_size}/{test_size}")
 
-        eps_ci = self._calculate_one_off_eps()  # inherited from AnalysisNode
+        eps_cp = self._calculate_one_off_eps()  # inherited from AnalysisNode
 
         metrics_array = []
         eps_fpr_array = []
@@ -214,7 +213,7 @@ class ParallelFPRLowerBoundAnalysisNode(FPRLowerBoundAnalysisNode):
         metrics_array = np.array(metrics_array)
         eps_fpr_array = np.array(eps_fpr_array)
         logger.info(
-            f"epsilon at FPR thresholds: eps_tpr_array shape {eps_fpr_array.shape} - has NaNs: {np.isnan(eps_fpr_array).any()}"
+            f"epsilon at FPR thresholds: eps_fpr_array shape {eps_fpr_array.shape} - has NaNs: {np.isnan(eps_fpr_array).any()}"
         )
 
         accuracy_array, auc_array, eps_array = (metrics_array[:, i] for i in range(3))
@@ -228,29 +227,21 @@ class ParallelFPRLowerBoundAnalysisNode(FPRLowerBoundAnalysisNode):
             metric_array=accuracy_array
         )
 
-        # compute lb/ub of 95% CI for eps at TPR thresholds
-        eps_fpr = np.array([run[0] for run in eps_fpr_array])
-        eps_fpr.sort(0)
-        # get CI bounds with 95% confidence
-        eps_fpr_lb, eps_fpr_ub = (
-            eps_fpr[self.LB_INDEX_OF_95_PCT_CI, :],
-            eps_fpr[self.UB_INDEX_OF_95_PCT_CI, :],
-        )
+        # compute lb/ub of 95% CI for eps at FPR thresholds
+        eps_fpr_lb, eps_fpr_ub = self._compute_ci(eps_fpr_array)
 
         outputs = FPRLowerBoundAnalysisNodeOutput(
             eps=np.nanmax(eps_fpr_ub),
             eps_fpr_lb=list(eps_fpr_lb),
             eps_fpr_ub=list(eps_fpr_ub),
-            eps_ci=eps_ci,
+            eps_cp=eps_cp,
             eps_mean=eps_mean,
             eps_mean_lb=eps_mean_lb,
             eps_mean_ub=eps_mean_ub,
             accuracy=accuracy_mean,
-            accuracy_lb=accuracy_mean_lb,
-            accuracy_ub=accuracy_mean_ub,
+            accuracy_ci=[accuracy_mean_lb, accuracy_mean_ub],
             auc=auc_mean,
-            auc_lb=auc_mean_lb,
-            auc_ub=auc_mean_ub,
+            auc_ci=[auc_mean_lb, auc_mean_ub],
             data_size={
                 "train_size": train_size,
                 "test_size": test_size,
