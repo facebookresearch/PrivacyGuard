@@ -70,6 +70,14 @@ class TextInclusionAnalysisInput(BaseAnalysisInput):
         """
         return self._df_train_user
 
+    def update_lcs_bound_config(self, lcs_len_target: int, fp_len_target: int) -> None:
+        """
+        Update the lcs bound config
+        """
+        self.lcs_bound_config = LCSBoundConfig(
+            lcs_len_target=lcs_len_target, fp_len_target=fp_len_target
+        )
+
 
 class TextInclusionAnalysisInputBatch(BaseAnalysisInput):
     def __init__(self, input_batch: Dict[str, TextInclusionAnalysisInput]) -> None:
