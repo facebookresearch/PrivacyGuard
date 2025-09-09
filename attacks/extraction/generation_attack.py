@@ -22,6 +22,8 @@ from privacy_guard.attacks.extraction.utils.data_utils import (
 
 from privacy_guard.attacks.extraction.utils.model_inference import process_dataframe
 
+from transformers import PreTrainedModel, PreTrainedTokenizer
+
 
 def setup_logger() -> logging.Logger:
     """Set up the logger for the script."""
@@ -55,10 +57,12 @@ TaskType = Literal["pretrain", "instruct"]
 FormatType = Literal["jsonl", "csv", "json"]
 
 
-class GenerationAttack(BaseAttack):
+class GenerationAttackCustomModel(BaseAttack):
     """
-    This attack, given a prompt set and a path to a LLM, executes generations and
+    This attack, given a tokenizer and model, executes generations and
     prepares "TextInclusionAnalysisInput" for analysis.
+    This is exposed as a separate class to allow for easier use of different models and tokenizers
+    with custom parameters.
 
 
     Options:
@@ -67,7 +71,8 @@ class GenerationAttack(BaseAttack):
             and instead are saved only in the TextInclusionAnalysisInput.
         --input_format: Format of the input file (jsonl, csv, json)
         --output_format: Format of the output file (jsonl, csv, json)
-        --model_path: Path to the model
+        --model: Model to use for generations
+        --tokenizer: Tokenizer to use for generations
         --device: Device to use (cuda, cpu)
         --input_column: Name of the input column in the input file
         --output_column: Name of the output column in the output dataframe
@@ -81,7 +86,8 @@ class GenerationAttack(BaseAttack):
         task: TaskType,
         input_file: str,
         output_file: str | None,
-        model_path: str,
+        tokenizer: PreTrainedTokenizer,
+        model: PreTrainedModel,
         input_format: FormatType = "jsonl",
         output_format: FormatType | None = "jsonl",
         device: str = "cuda",
@@ -96,12 +102,14 @@ class GenerationAttack(BaseAttack):
                 'Generation attack argument "output_format" is unused when output file is not specified'
             )
 
+        self.tokenizer = tokenizer
+        self.model = model
+
         self.task = task
         self.input_file = input_file
         self.output_file = output_file
         self.input_format = input_format
         self.output_format = output_format
-        self.model_path = model_path
         self.device = device
         self.input_column = input_column
         self.output_column = output_column
@@ -114,12 +122,7 @@ class GenerationAttack(BaseAttack):
         self.input_df: pd.DataFrame = load_data(input_file, format=input_format)
         logger.info(f"Loaded {len(self.input_df)} rows")
 
-        # Load model and tokenizer
-        logger.info(f"Loading model: {model_path}")
-        self.model, self.tokenizer = load_model_and_tokenizer(  # pyre-ignore
-            model_path, device=device
-        )
-        logger.info("Model loaded successfully. Generation attack is ready to run")
+        logger.info("Generation attack is ready to run.")
 
     def run_attack(self) -> TextInclusionAnalysisInput:
         # Process data
@@ -158,3 +161,68 @@ class GenerationAttack(BaseAttack):
             lcs_bound_config=LCSBoundConfig(lcs_len_target=150, fp_len_target=50),
         )
         logger.info("Task completed successfully")
+
+
+class GenerationAttack(GenerationAttackCustomModel):
+    """
+    This attack, given a prompt set and a path to a LLM, executes generations and
+    prepares "TextInclusionAnalysisInput" for analysis.
+
+    Under the hood, this attack loads the model based on "model_path" and passes it into
+    GenerationAttackCustomModel
+
+
+    Options:
+        --input_file: Path to the input file
+        --output_file: Optional to the output file. If none, outputs are not saved to file
+            and instead are saved only in the TextInclusionAnalysisInput.
+        --input_format: Format of the input file (jsonl, csv, json)
+        --output_format: Format of the output file (jsonl, csv, json)
+        --model_path: Path to the model (or model name when loading from Huggingface)
+        --device: Device to use (cuda, cpu)
+        --input_column: Name of the input column in the input file
+        --output_column: Name of the output column in the output dataframe
+        --batch_size: Batch size for processing
+        --max_new_tokens: Maximum number of new tokens to generate
+
+    """
+
+    def __init__(
+        self,
+        task: TaskType,
+        input_file: str,
+        output_file: str | None,
+        model_path: str,
+        input_format: FormatType = "jsonl",
+        output_format: FormatType | None = "jsonl",
+        device: str = "cuda",
+        input_column: str = "prompt",
+        output_column: str = "prediction",
+        batch_size: int = 4,
+        max_new_tokens: int = 512,
+        **generation_kwargs: Dict[str, Any],
+    ) -> None:
+        # Load model and tokenizer
+        logger.info(f"Loading model: {model_path}")
+        model, tokenizer = load_model_and_tokenizer(  # pyre-ignore
+            model_path, device=device
+        )
+        logger.info("Model loaded successfully.")
+
+        super().__init__(
+            task=task,
+            input_file=input_file,
+            output_file=output_file,
+            model=model,
+            tokenizer=tokenizer,
+            input_format=input_format,
+            output_format=output_format,
+            device=device,
+            input_column=input_column,
+            output_column=output_column,
+            batch_size=batch_size,
+            max_new_tokens=max_new_tokens,
+            **generation_kwargs,
+        )
+
+        self.model_path = model_path
