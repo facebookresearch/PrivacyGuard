@@ -300,6 +300,64 @@ class MIAResults:
 
         return accuracy, auc_value, eps_fpr_array, eps_tpr_array, eps_max_array
 
+    def compute_eps_at_tpr_threshold(
+        self,
+        delta: float,
+        tpr_threshold: NDArray[float],
+        cap_eps: bool = True,
+        verbose: bool = False,
+    ) -> list[float]:
+        """
+        Compute epsilon at error threshold for MIA attack
+        """
+
+        assert len(tpr_threshold) > 1
+
+        tpr, fpr = self.get_tpr_fpr()
+
+        fnr = 1 - tpr
+        tnr = 1 - fpr
+
+        # Divide by zero and invalid value warnings are expectd and occur at certain threshold values
+        # We suppress these warnings to avoid disruptive output logs
+        with np.errstate(divide="ignore", invalid="ignore"):
+            eps1 = np.log(1 - fnr - delta) - np.log(fpr)
+            eps2 = np.log(tnr - delta) - np.log(fnr)
+
+        # filter out extreme values in eps1 and eps2
+        if cap_eps:
+            eps_ub = np.log(self._scores_train.shape[0])
+            eps1[eps1 > eps_ub] = eps_ub
+            eps2[eps2 > eps_ub] = eps_ub
+
+        eps_tpr_array = []
+
+        tpr_array = []
+
+        # find leftmost index in tpr that is >= tpr_threshold
+        tpr_indices = self._get_indices_of_error_at_thresholds(
+            tpr, tpr_threshold, "tpr"
+        )
+
+        for i in range(len(tpr_threshold)):
+            tpr_idx = tpr_indices[i]
+            tpr_level = tpr[tpr_idx]
+            eps_tpr = eps1[tpr_idx]
+            tpr_array.append(tpr_level)
+            eps_tpr_array.append(eps_tpr)
+
+        if verbose:
+            logger.info(
+                "\n".join(
+                    [
+                        f"eps@fpr{thre}[tpr={tpr_array[i]:.3f}]: {eps_tpr_array[i]:.3f}"
+                        for i, thre in enumerate(tpr_threshold)
+                    ]
+                )
+            )
+
+        return eps_tpr_array
+
     @staticmethod
     def _clopper_pearson(
         count: int,

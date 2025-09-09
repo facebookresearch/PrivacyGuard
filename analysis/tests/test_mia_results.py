@@ -364,6 +364,18 @@ class TestMiaResults(unittest.TestCase):
 
         self.assertNotIn("TypeError", log_capture.actual())
 
+    @test_log_assert
+    def test_compute_eps_at_tpr_threshold(self, log_capture: LogCapture) -> None:
+        error_thresholds: np.ndarray = np.linspace(0.01, 1, 100)
+
+        eps_tpr_array = self.mia_results.compute_eps_at_tpr_threshold(
+            delta=0.1, tpr_threshold=error_thresholds, verbose=True
+        )
+
+        self.assertEqual(len(eps_tpr_array), len(error_thresholds))
+
+        self.assertNotIn("TypeError", log_capture.actual())
+
     def test_suppress_divide_and_invalid_warnings(self) -> None:
         threshold = np.array([0.1, 0.2, 0.3])
         tpr = np.array([1.0, 1.0, 1.0, 0.5])
@@ -392,6 +404,21 @@ class TestMiaResults(unittest.TestCase):
             with warnings.catch_warnings(record=True) as w:
                 self.mia_results.compute_metrics_at_error_threshold(
                     delta, error_threshold=threshold
+                )
+                self.assertFalse(
+                    any("divide by zero" in str(warning.message) for warning in w)
+                )
+                self.assertFalse(
+                    any("invalid value" in str(warning.message) for warning in w)
+                )
+
+        # test that warnings are suppressed when compute_eps_at_tpr_threshold is called
+        with patch.object(MIAResults, "get_tpr_fpr") as mock_get_tpr_fpr:
+            mock_get_tpr_fpr.return_value = (tpr, fpr)
+            # Use the catch_warnings context manager to check that no warnings are raised
+            with warnings.catch_warnings(record=True) as w:
+                self.mia_results.compute_eps_at_tpr_threshold(
+                    delta=delta, tpr_threshold=threshold
                 )
                 self.assertFalse(
                     any("divide by zero" in str(warning.message) for warning in w)
