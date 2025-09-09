@@ -109,7 +109,7 @@ class TextInclusionAttack(BaseAttack):
         analysis_input = TextInclusionAnalysisInput(
             generation_df=data,
             disable_similarity=True,
-            target_key="targets",
+            target_key="target",
             lcs_bound_config=lcs_bound_config,
         )
         return analysis_input
