@@ -7,7 +7,7 @@ This module provides functions for loading and saving data, as well as loading m
 """
 
 import json
-from typing import Optional, Tuple
+from typing import Any, Dict, Optional, Tuple
 
 import pandas as pd
 import torch
@@ -62,7 +62,10 @@ def save_results(df: pd.DataFrame, output_path: str, format: str = "jsonl") -> N
 
 
 def load_model_and_tokenizer(
-    model_name_or_path: str, device: Optional[str] = None
+    model_name_or_path: str,
+    device: Optional[str] = None,
+    model_kwargs: Optional[Dict[str, Any]] = None,
+    tokenizer_kwargs: Optional[Dict[str, Any]] = None,
 ) -> Tuple[PreTrainedModel, PreTrainedTokenizer]:
     """
     Load a model and tokenizer.
@@ -70,6 +73,8 @@ def load_model_and_tokenizer(
     Args:
         model_name_or_path: Name or path of the model to load
         device: Device to load the model on ('cuda', 'cpu', etc.)
+        model_kwargs: Additional kwargs to pass to AutoModelForCausalLM.from_pretrained()
+        tokenizer_kwargs: Additional kwargs to pass to AutoTokenizer.from_pretrained()
 
     Returns:
         Tuple of (model, tokenizer)
@@ -77,8 +82,13 @@ def load_model_and_tokenizer(
     if device is None:
         device = "cuda" if torch.cuda.is_available() else "cpu"
 
-    tokenizer = AutoTokenizer.from_pretrained(model_name_or_path)
-    model = AutoModelForCausalLM.from_pretrained(model_name_or_path).to(device)
+    model_kwargs = model_kwargs or {}
+    tokenizer_kwargs = tokenizer_kwargs or {}
+
+    tokenizer = AutoTokenizer.from_pretrained(model_name_or_path, **tokenizer_kwargs)
+    model = AutoModelForCausalLM.from_pretrained(model_name_or_path, **model_kwargs).to(
+        device
+    )
 
     # Ensure tokenizer has a pad token
     if tokenizer.pad_token is None:
