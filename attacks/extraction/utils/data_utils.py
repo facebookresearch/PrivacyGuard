@@ -61,6 +61,55 @@ def save_results(df: pd.DataFrame, output_path: str, format: str = "jsonl") -> N
         raise ValueError(f"Unsupported format: {format}")
 
 
+def load_model(
+    model_name_or_path: str,
+    device: Optional[str] = None,
+    model_kwargs: Optional[Dict[str, Any]] = None,
+) -> PreTrainedModel:
+    """
+    Load a model only.
+
+    Args:
+        model_name_or_path: Name or path of the model to load
+        device: Device to load the model on ('cuda', 'cpu', etc.)
+        model_kwargs: Additional kwargs to pass to AutoModelForCausalLM.from_pretrained()
+
+    Returns:
+        Loaded model
+    """
+    if device is None:
+        device = "cuda" if torch.cuda.is_available() else "cpu"
+
+    model_kwargs = model_kwargs or {}
+
+    model = AutoModelForCausalLM.from_pretrained(model_name_or_path, **model_kwargs).to(
+        device
+    )
+    return model
+
+
+def load_tokenizer(
+    model_name_or_path: str,
+    tokenizer_kwargs: Optional[Dict[str, Any]] = None,
+) -> PreTrainedTokenizer:
+    """
+    Load a tokenizer only.
+
+    Args:
+        model_name_or_path: Name or path of the model to load
+        tokenizer_kwargs: Additional kwargs to pass to AutoTokenizer.from_pretrained()
+
+    Returns:
+        Loaded tokenizer
+    """
+    tokenizer_kwargs = tokenizer_kwargs or {}
+    tokenizer = AutoTokenizer.from_pretrained(model_name_or_path, **tokenizer_kwargs)
+    # Ensure tokenizer has a pad token
+    if tokenizer.pad_token is None:
+        tokenizer.pad_token = tokenizer.eos_token
+    return tokenizer
+
+
 def load_model_and_tokenizer(
     model_name_or_path: str,
     device: Optional[str] = None,
@@ -79,19 +128,7 @@ def load_model_and_tokenizer(
     Returns:
         Tuple of (model, tokenizer)
     """
-    if device is None:
-        device = "cuda" if torch.cuda.is_available() else "cpu"
-
-    model_kwargs = model_kwargs or {}
-    tokenizer_kwargs = tokenizer_kwargs or {}
-
-    tokenizer = AutoTokenizer.from_pretrained(model_name_or_path, **tokenizer_kwargs)
-    model = AutoModelForCausalLM.from_pretrained(model_name_or_path, **model_kwargs).to(
-        device
-    )
-
-    # Ensure tokenizer has a pad token
-    if tokenizer.pad_token is None:
-        tokenizer.pad_token = tokenizer.eos_token
+    model = load_model(model_name_or_path, device, model_kwargs)
+    tokenizer = load_tokenizer(model_name_or_path, tokenizer_kwargs)
 
     return model, tokenizer
