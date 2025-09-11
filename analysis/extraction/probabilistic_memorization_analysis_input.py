@@ -18,7 +18,7 @@ class ProbabilisticMemorizationAnalysisInput(BaseAnalysisInput):
     args:
         generation_df: dataframe containing prediction_logprobs column (2D list)
         prob_threshold: threshold for comparing model probabilities
-        n_values: optional list of n values for computing corresponding probabilities
+        n_values: optional list of n values for computing corresponding probabilities of model outputting the target in n attempts. Refer to https://arxiv.org/abs/2410.19482 for details.
     """
 
     REQUIRED_COLUMNS = {
