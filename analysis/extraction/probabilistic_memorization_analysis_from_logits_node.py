@@ -2,7 +2,7 @@
 
 # pyre-strict
 from dataclasses import dataclass
-from typing import Any, cast, List, Optional
+from typing import Any, cast, Dict, List, Optional
 
 import pandas as pd
 from privacy_guard.analysis.base_analysis_node import BaseAnalysisNode
@@ -26,9 +26,9 @@ class ProbabilisticMemorizationAnalysisFromLogitsNodeOutput(BaseAnalysisOutput):
 
 
 def _compute_model_probability_from_logits(
-    row: pd.Series, temp: float, topK: int
+    row: pd.Series, **generation_kwargs: Any
 ) -> float:
-    """Compute model probability from prediction logits using temperature and topK sampling.
+    """Compute model probability from prediction logits using generation parameters.
 
     TODO: Implement this function to:
     1. Convert logits to probabilities using temperature scaling
@@ -37,8 +37,7 @@ def _compute_model_probability_from_logits(
 
     Args:
         row (pd.Series): A row of a DataFrame containing the "prediction_logits" column.
-        temp (float): Temperature parameter for sampling.
-        topK (int): TopK parameter for sampling.
+        **generation_kwargs: Generation parameters (e.g., temp, topK).
 
     Returns:
         float: The model probability for the target.
@@ -51,16 +50,15 @@ class ProbabilisticMemorizationAnalysisFromLogitsNode(BaseAnalysisNode):
     def __init__(
         self, analysis_input: ProbabilisticMemorizationAnalysisFromLogitsInput
     ) -> None:
-        self.temp: float = analysis_input.temp
-        self.topK: int = analysis_input.topK
+        self.generation_kwargs: Dict[str, Any] = analysis_input.generation_kwargs
         self.prob_threshold: float = analysis_input.prob_threshold
         self.n_values: List[int] = analysis_input.n_values
         self.generation_df: pd.DataFrame = analysis_input.generation_df
 
         super().__init__(analysis_input=analysis_input)
 
-    def apply_temp_and_topK(self, logits: Any, temp: float, topK: int) -> Any:
-        """Apply temperature scaling and topK sampling to logits.
+    def apply_generation_kwargs(self, logits: Any, **generation_kwargs: Any) -> Any:
+        """Apply generation parameters like temperature and topK sampling to logits.
 
         TODO: Implement this function to:
         1. Apply temperature scaling to the logits
@@ -69,11 +67,10 @@ class ProbabilisticMemorizationAnalysisFromLogitsNode(BaseAnalysisNode):
 
         Args:
             logits (Any): The input logits to process.
-            temp (float): Temperature parameter for scaling.
-            topK (int): Number of top logits to keep.
+            **generation_kwargs: Generation parameters (e.g., temp, topK).
 
         Returns:
-            Any: The processed logits/probabilities after temperature and topK application.
+            Any: The processed logits/probabilities after generation parameter application.
         """
         # TODO: Implement this function
         return None
