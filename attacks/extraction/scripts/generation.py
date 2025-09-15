@@ -29,21 +29,13 @@ import argparse
 import os
 
 from privacy_guard.attacks.extraction.generation_attack import GenerationAttack
+from privacy_guard.attacks.extraction.predictors import HuggingFacePredictor
 
 
 def parse_args() -> argparse.Namespace:
     """Parse command-line arguments."""
     parser = argparse.ArgumentParser(
         description="Run NLP using PrivacyGuard GenerationAttack."
-    )
-
-    # Required arguments
-    parser.add_argument(
-        "--task",
-        type=str,
-        required=True,
-        choices=["pretrain", "instruct"],
-        help="The NLP task to perform",
     )
 
     # Optional arguments with defaults
@@ -56,8 +48,8 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--output_file",
         type=str,
-        default="/tmp/output_{task}.jsonl",
-        help="Path to the output file. Use {task} as a placeholder for the task name.",
+        default="/tmp/output_data.jsonl",
+        help="Path to the output file. ",
     )
     parser.add_argument(
         "--input_format",
@@ -79,7 +71,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--model_path",
         type=str,
-        default=f"/home/{current_user}/models/meta-llama/Meta-Llama-3.1-8B-Instruct",
+        default=f"/home/{current_user}/models/Llama-3.2-1B",
         help="Path to the model",
     )
     parser.add_argument(
@@ -92,14 +84,20 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--input_column",
         type=str,
-        default="firstsecond_sentence",
+        default="input_col",
         help="Name of the input column in the data",
+    )
+    parser.add_argument(
+        "--target_column",
+        type=str,
+        default="target",
+        help="Name of the target column in the data",
     )
     parser.add_argument(
         "--output_column",
         type=str,
-        default="{task}",
-        help="Name of the output column in the data. Use {task} as a default for the task name.",
+        default="output_col",
+        help="Name of the output column in the data.",
     )
     parser.add_argument(
         "--batch_size",
@@ -123,19 +121,28 @@ def main() -> int:
     # Parse arguments
     args = parse_args()
 
+    # Create a HuggingFace predictor instance
+    predictor = HuggingFacePredictor(
+        model_name=args.model_path,
+        device=args.device,
+    )
+
+    print("Predictor created...")
+
     generation_attack = GenerationAttack(
-        task=args.task,
         input_file=args.input_file,
         output_file=args.output_file,
+        predictor=predictor,
         input_format=args.input_format,
         output_format=args.output_format,
-        model_path=args.model_path,
-        device=args.device,
         input_column=args.input_column,
+        target_column=args.target_column,
         output_column=args.output_column,
         batch_size=args.batch_size,
         max_new_tokens=args.max_new_tokens,
     )
+
+    print("Running generation attack...")
 
     _ = generation_attack.run_attack()
 
