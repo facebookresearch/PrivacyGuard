@@ -2,6 +2,7 @@
 
 # pyre-strict
 
+from enum import Enum
 from typing import List
 
 import numpy as np
@@ -13,10 +14,9 @@ from privacy_guard.analysis.mia.aggregate_analysis_input import (
     AggregationType,
 )
 from privacy_guard.attacks.base_attack import BaseAttack
-from python.migrations.py310 import StrEnum310
 
 
-class CalibScoreType(StrEnum310):
+class CalibScoreType(str, Enum):
     LOSS = "loss"
     ENTROPY = "entropy"
     CONFIDENCE = "confidence"

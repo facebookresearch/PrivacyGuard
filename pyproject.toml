@@ -3,7 +3,7 @@ requires = ["setuptools>=34.4", "wheel", "setuptools_scm"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "privacy-guard"
+name = "privacy_guard"
 description = "PrivacyGuard"
 authors = [{name = "Meta Platforms, Inc."}]
 license = "MIT"
@@ -30,6 +30,14 @@ dependencies = [ # need to double check which of these are required.
     "pyre-extensions",
     "sympy",
     "markdown",
+    "pytest>=4.6",
+    "pytest-cov",
+    "pytest-timeout",
+    "torch",
+    'tqdm',
+    'textdistance',
+    'transformers',
+    'later',
 ]
 
 [project.optional-dependencies]
@@ -37,8 +45,6 @@ dev = [
     "beautifulsoup4",
     "Jinja2",
     "pyfakefs",
-    "pytest>=4.6",
-    "pytest-cov",
     "sphinx",
     "sphinx-autodoc-typehints",
     "sphinx_rtd_theme",
@@ -48,7 +54,7 @@ dev = [
 
 
 notebook = [
-    "jupyter",
+
 ]
 
 unittest_minimal = [
@@ -59,7 +65,7 @@ unittest = [
 ]
 
 tutorial = [
-    "privacy-guard[unittest]",
+    "jupyter",
     "mdformat",
 ]
 
@@ -72,9 +78,9 @@ find = {}
 [tool.setuptools.package-data]
 "*" = ["*.js", "*.css", "*.html"]
 
-[tool.setuptools_scm]
-write_to = "privacy_guard/version.py"
-local_scheme = "node-and-date"
+#[tool.setuptools_scm]
+#write_to = "privacy_guard/version.py"
+#local_scheme = "node-and-date"
 
 [tool.usort]
 first_party_detection = false

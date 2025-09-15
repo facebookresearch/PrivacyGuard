@@ -11,8 +11,6 @@ from unittest.mock import patch
 import numpy as np
 import torch
 from privacy_guard.analysis.mia.mia_results import MIAResults
-from testfixtures import LogCapture
-from windtunnel.lib.unittest_utils import test_log_assert
 
 
 class TestMiaResults(unittest.TestCase):
@@ -121,8 +119,7 @@ class TestMiaResults(unittest.TestCase):
         self.assertEqual(ci_upp, 1)
         self.assertLessEqual(ci_low, 1)
 
-    @test_log_assert
-    def test_compute_acc_auc_ci_epsilon(self, log_capture: LogCapture) -> None:
+    def test_compute_acc_auc_ci_epsilon(self) -> None:
         logging.basicConfig(level=logging.DEBUG)
 
         accuracy, auc_value, emp_eps = self.mia_results.compute_acc_auc_ci_epsilon(
@@ -137,12 +134,7 @@ class TestMiaResults(unittest.TestCase):
         self.assertLessEqual(-1, emp_eps)
         self.assertLessEqual(emp_eps, 1)
 
-        self.assertNotIn("TypeError", log_capture.actual())
-
-    @test_log_assert
-    def test_compute_metrics_at_error_threshold_use_fnr_tnr_false(
-        self, log_capture: LogCapture
-    ) -> None:
+    def test_compute_metrics_at_error_threshold_use_fnr_tnr_false(self) -> None:
         """Test default behavior when use_fnr_tnr=False (default)"""
         error_thresholds: np.ndarray = np.linspace(0.01, 1, 100)
 
@@ -174,12 +166,7 @@ class TestMiaResults(unittest.TestCase):
             else:
                 self.assertAlmostEqual(eps_max_array[i], expected_max, places=10)
 
-        self.assertNotIn("TypeError", log_capture.actual())
-
-    @test_log_assert
-    def test_compute_metrics_at_error_threshold_use_fnr_tnr_true(
-        self, log_capture: LogCapture
-    ) -> None:
+    def test_compute_metrics_at_error_threshold_use_fnr_tnr_true(self) -> None:
         """Test behavior when use_fnr_tnr=True"""
         error_thresholds: np.ndarray = np.linspace(0.01, 1, 100)
 
@@ -209,8 +196,6 @@ class TestMiaResults(unittest.TestCase):
             self.assertLess(len(eps_fpr_array), len(error_thresholds))
             self.assertLess(len(eps_tpr_array), len(error_thresholds))
             self.assertLess(len(eps_max_array), len(error_thresholds))
-
-        self.assertNotIn("TypeError", log_capture.actual())
 
     def test_compute_metrics_at_error_threshold_filtering_behavior(self) -> None:
         """Test that use_fnr_tnr=True properly filters out thresholds >= 1.0"""
@@ -324,7 +309,6 @@ class TestMiaResults(unittest.TestCase):
             else:
                 self.assertGreaterEqual(eps_max_true[i], min_expected - 1e-10)
 
-    @test_log_assert
     def test_compute_acc_auc_epsilon(self) -> None:
         accuracy, auc_value, emp_eps = self.mia_results.compute_acc_auc_epsilon(
             delta=0.1
@@ -338,8 +322,7 @@ class TestMiaResults(unittest.TestCase):
         self.assertLessEqual(-1, emp_eps)
         self.assertLessEqual(emp_eps, 1)
 
-    @test_log_assert
-    def test_compute_metrics_at_error_threshold(self, log_capture: LogCapture) -> None:
+    def test_compute_metrics_at_error_threshold(self) -> None:
         error_thresholds: np.ndarray = np.linspace(0.01, 1, 100)
 
         (
@@ -362,10 +345,7 @@ class TestMiaResults(unittest.TestCase):
         self.assertEqual(len(eps_tpr_array), len(error_thresholds))
         self.assertEqual(len(eps_max_array), len(error_thresholds))
 
-        self.assertNotIn("TypeError", log_capture.actual())
-
-    @test_log_assert
-    def test_compute_eps_at_tpr_threshold(self, log_capture: LogCapture) -> None:
+    def test_compute_eps_at_tpr_threshold(self) -> None:
         error_thresholds: np.ndarray = np.linspace(0.01, 1, 100)
 
         eps_tpr_array = self.mia_results.compute_eps_at_tpr_threshold(
@@ -373,8 +353,6 @@ class TestMiaResults(unittest.TestCase):
         )
 
         self.assertEqual(len(eps_tpr_array), len(error_thresholds))
-
-        self.assertNotIn("TypeError", log_capture.actual())
 
     def test_suppress_divide_and_invalid_warnings(self) -> None:
         threshold = np.array([0.1, 0.2, 0.3])
