@@ -26,22 +26,23 @@ class ProbabilisticMemorizationAnalysisNodeOutput(BaseAnalysisOutput):
     augmented_output_dataset: pd.DataFrame
 
 
-def _compute_model_probability(row: pd.Series) -> float:
+def _compute_model_probability(row: pd.Series, logprobs_column: str) -> float:
     """Compute model probability by summing up the prediction logprobs for each row. Currently only works for a single target (the most common use case).
 
     Args:
-        row (pd.Series): A row of a DataFrame containing the "prediction_logprobs" column (each entry is a 2D list).
+        row (pd.Series): A row of a DataFrame containing the logprobs column (each entry is a 2D list).
+        logprobs_column (str): Name of the column containing logprobs.
 
     Returns:
         float: The model probability for the target computed by summing up the logprobs.
     """
-    prediction_logprobs = row["prediction_logprobs"]
+    prediction_logprobs = row[logprobs_column]
     # Sum up the logprobs for this row
     if isinstance(prediction_logprobs, list) and len(prediction_logprobs) > 0:
         if isinstance(prediction_logprobs[0], list):
             if len(prediction_logprobs) > 1:
                 raise ValueError(
-                    "Invalid format for prediction_logprobs. Expected a 1D list of numbers or a nested list of a single list."
+                    f"Invalid format for {logprobs_column}. Expected a 1D list of numbers or a nested list of a single list."
                 )
             prediction_logprobs = prediction_logprobs[0]  # Unnest the list
 
@@ -77,6 +78,7 @@ class ProbabilisticMemorizationAnalysisNode(BaseAnalysisNode):
         self.prob_threshold: float = analysis_input.prob_threshold
         self.n_values: List[int] = analysis_input.n_values
         self.generation_df: pd.DataFrame = analysis_input.generation_df
+        self.logprobs_column: str = analysis_input.logprobs_column
 
         super().__init__(analysis_input=analysis_input)
 
@@ -88,7 +90,7 @@ class ProbabilisticMemorizationAnalysisNode(BaseAnalysisNode):
 
         # Compute model probabilities
         model_probability = generation_df.progress_apply(
-            _compute_model_probability, axis=1
+            lambda row: _compute_model_probability(row, self.logprobs_column), axis=1
         )
         generation_df["model_probability"] = model_probability
 

@@ -16,26 +16,26 @@ class ProbabilisticMemorizationAnalysisInput(BaseAnalysisInput):
     Takes in a single dataframe of generation data with prediction logprobs.
 
     args:
-        generation_df: dataframe containing prediction_logprobs column (2D list)
+        generation_df: dataframe containing logprobs column
         prob_threshold: threshold for comparing model probabilities
         n_values: optional list of n values for computing corresponding probabilities of model outputting the target in n attempts. Refer to https://arxiv.org/abs/2410.19482 for details.
+        logprobs_column: name of the column containing logprobs (default: "prediction_logprobs")
     """
-
-    REQUIRED_COLUMNS = {
-        "prediction_logprobs",
-    }
 
     def __init__(
         self,
         generation_df: pd.DataFrame,
         prob_threshold: float,
         n_values: Optional[List[int]] = None,
+        logprobs_column: str = "prediction_logprobs",
     ) -> None:
         self.prob_threshold: float = prob_threshold
         self.n_values: List[int] = n_values or []
+        self.logprobs_column: str = logprobs_column
 
         # Validate required columns
-        missing_columns = self.REQUIRED_COLUMNS - set(generation_df.columns)
+        required_columns = {logprobs_column}
+        missing_columns = required_columns - set(generation_df.columns)
         if missing_columns:
             raise ValueError(f"Missing required columns: {missing_columns}")
 

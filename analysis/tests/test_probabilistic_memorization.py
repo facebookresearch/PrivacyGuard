@@ -62,26 +62,30 @@ class TestProbabilisticMemorizationAnalysis(unittest.TestCase):
         # Test with single nested list (valid format)
         row1 = pd.Series({"prediction_logprobs": [[-0.1, -0.2, -0.3]]})
         expected1 = math.exp(-0.6)  # Sum is -0.6
-        self.assertAlmostEqual(_compute_model_probability(row1), expected1, places=5)
+        self.assertAlmostEqual(
+            _compute_model_probability(row1, "prediction_logprobs"), expected1, places=5
+        )
 
         # Test with empty list
         row2 = pd.Series({"prediction_logprobs": []})
-        self.assertEqual(_compute_model_probability(row2), 0.0)
+        self.assertEqual(_compute_model_probability(row2, "prediction_logprobs"), 0.0)
 
         # Test with single nested list containing one element
         row3 = pd.Series({"prediction_logprobs": [[0.0]]})
-        self.assertEqual(_compute_model_probability(row3), 1.0)
+        self.assertEqual(_compute_model_probability(row3, "prediction_logprobs"), 1.0)
 
         # Test with 1D list (valid format)
         row4 = pd.Series({"prediction_logprobs": [-0.5, -0.3, -0.2]})
         expected4 = math.exp(-1.0)  # Sum is -1.0
-        self.assertAlmostEqual(_compute_model_probability(row4), expected4, places=5)
+        self.assertAlmostEqual(
+            _compute_model_probability(row4, "prediction_logprobs"), expected4, places=5
+        )
 
     def test_compute_model_probability_error_cases(self) -> None:
         # Test with multiple nested lists (should raise ValueError)
         row_invalid = pd.Series({"prediction_logprobs": [[-0.1, -0.2], [-0.3, -0.4]]})
         with self.assertRaises(ValueError) as context:
-            _compute_model_probability(row_invalid)
+            _compute_model_probability(row_invalid, "prediction_logprobs")
         self.assertIn("Invalid format for prediction_logprobs", str(context.exception))
 
     def test_compute_n_probabilities_dict(self) -> None:
@@ -207,3 +211,43 @@ class TestProbabilisticMemorizationAnalysis(unittest.TestCase):
 
         # Check that the number of rows is preserved
         self.assertEqual(len(augmented_df), len(self.data["prediction_logprobs"]))
+
+    def test_custom_logprobs_column(self) -> None:
+        """Test that custom logprobs column names work correctly."""
+        # Create data with custom column name
+        custom_data = {
+            "custom_logprobs": [
+                [[-0.1, -0.2, -0.05]],  # Sum: -0.35, exp(-0.35) ≈ 0.705
+                [[-0.5, -0.3, -0.9]],  # Sum: -1.7, exp(-1.7) ≈ 0.183
+            ]
+        }
+
+        analysis_input = ProbabilisticMemorizationAnalysisInput(
+            generation_df=pd.DataFrame(custom_data),
+            prob_threshold=0.5,
+            logprobs_column="custom_logprobs",
+        )
+
+        analysis_node = ProbabilisticMemorizationAnalysisNode(
+            analysis_input=analysis_input
+        )
+
+        results = analysis_node.compute_outputs()
+
+        # Check that original column is preserved
+        augmented_df = results["augmented_output_dataset"]
+        self.assertIn("custom_logprobs", augmented_df.columns)
+
+        # Check that model probabilities are computed correctly
+        model_probs = results["model_probability"]
+        expected_model_probs = [math.exp(-0.35), math.exp(-1.7)]
+
+        for i, expected in enumerate(expected_model_probs):
+            self.assertAlmostEqual(model_probs.iloc[i], expected, places=3)
+
+        # Check threshold comparisons
+        above_probability_threshold = results["above_probability_threshold"]
+        expected_above_probability_threshold = [True, False]  # 0.705 > 0.5, 0.183 < 0.5
+        self.assertEqual(
+            above_probability_threshold.tolist(), expected_above_probability_threshold
+        )
