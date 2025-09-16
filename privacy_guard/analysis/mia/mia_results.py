@@ -162,13 +162,13 @@ class MIAResults:
                 "tpr@fpr0.001: {}, "
                 "eps@fpr0.001: {}, "
                 "auc {} accuracy {}, ".format(
-                    tpr[idx].round(5),
-                    fpr[idx].round(5),
-                    np.max(np.log(max_r1).round(5), 0),
+                    round(tpr[idx], 5),
+                    round(fpr[idx], 5),
+                    np.max(round(np.log(max_r1), 5), 0),
                     low.round(5),
-                    np.max(np.log(r1[fpr_idx]).round(5), 0),
-                    auc_value.round(5),
-                    accuracy.round(5),
+                    np.max(round(np.log(r1[fpr_idx]), 5), 0),
+                    round(auc_value, 5),
+                    round(accuracy, 5),
                 )
             )
         else:
@@ -188,14 +188,13 @@ class MIAResults:
                 "tnr@fnr0.001: {}, "
                 "eps@fnr0.001: {}, "
                 "auc {} accuracy {}, ".format(
-                    # pyre-fixme[16]: `int` has no attribute `round`.
-                    (1 - fpr[idx]).round(5),
-                    (1 - tpr[idx]).round(5),
-                    np.max(np.log(max_r2).round(5), 0),
-                    low.round(5),
-                    np.max(np.log(r1[fnr_idx]).round(5), 0),
-                    auc_value.round(5),
-                    accuracy.round(5),
+                    round((1.0 - fpr[idx]), 5),
+                    round((1.0 - tpr[idx]), 5),
+                    np.max(round(np.log(max_r2), 5), 0),
+                    round(low, 5),
+                    np.max(round(np.log(r1[fnr_idx]), 5), 0),
+                    round(auc_value, 5),
+                    round(accuracy, 5),
                 )
             )
         emp_eps = np.max(np.log(max_r + 1e-30), 0)
