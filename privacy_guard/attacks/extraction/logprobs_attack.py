@@ -4,7 +4,7 @@
 
 import logging
 
-from typing import Any, Dict, List, Literal
+from typing import Any, Dict, List, Literal, Optional
 
 import pandas as pd
 
@@ -12,12 +12,9 @@ from privacy_guard.analysis.extraction.probabilistic_memorization_analysis_input
     ProbabilisticMemorizationAnalysisInput,
 )
 from privacy_guard.attacks.base_attack import BaseAttack
+from privacy_guard.attacks.extraction.utils.data_utils import load_data, save_results
 
-from privacy_guard.attacks.extraction.utils.data_utils import (
-    load_data,
-    load_model_and_tokenizer,
-    save_results,
-)
+from .predictors.base_predictor import BasePredictor
 
 
 def setup_logger() -> logging.Logger:
@@ -51,9 +48,9 @@ logger: logging.Logger = setup_logger()
 FormatType = Literal["jsonl", "csv", "json"]
 
 
-class LogProbsAttack(BaseAttack):
+class LogprobsAttack(BaseAttack):
     """
-    This attack, given prompt-target pairs and a path to a LLM, extracts log probabilities and
+    This attack, given prompt-target pairs and a path to a LLM, extracts logprobs and
     prepares "ProbabilisticMemorizationAnalysisInput" for analysis.
 
     Options:
@@ -70,42 +67,41 @@ class LogProbsAttack(BaseAttack):
         --batch_size: Batch size for processing
         --prob_threshold: Threshold for comparing model probabilities
         --n_values: optional list of n values for computing corresponding probabilities of model outputting the target in n attempts. Refer to https://arxiv.org/abs/2410.19482 for details.
+        --**generation_kwargs: Generation parameters (temperature, top_k, top_p, etc.) passed to the predictor
     """
 
     def __init__(
         self,
         input_file: str,
         output_file: str | None,
-        model_path: str,
+        predictor: BasePredictor,
         input_format: FormatType = "jsonl",
         output_format: FormatType | None = "jsonl",
-        device: str = "cuda",
         prompt_column: str = "prompt",
         target_column: str = "target",
         output_column: str = "prediction_logprobs",
-        batch_size: int = 4,
+        batch_size: int = 1,
         prob_threshold: float = 0.5,
         n_values: List[int] | None = None,
-        **model_kwargs: Dict[str, Any],
+        **generation_kwargs: Any,
     ) -> None:
         if output_file is None and output_format is not None:
             logger.warning(
-                'LogProbs attack argument "output_format" is unused when output file is not specified'
+                'Logprobs attack argument "output_format" is unused when output file is not specified'
             )
 
         self.input_file = input_file
         self.output_file = output_file
         self.input_format = input_format
         self.output_format = output_format
-        self.model_path = model_path
-        self.device = device
+        self.predictor: BasePredictor = predictor
         self.prompt_column = prompt_column
         self.target_column = target_column
         self.output_column = output_column
         self.batch_size = batch_size
         self.prob_threshold = prob_threshold
-        self.n_values: List[int] = n_values or []
-        self.model_kwargs: Dict[str, Any] = model_kwargs
+        self.n_values: Optional[List[int]] = n_values
+        self.generation_kwargs: Dict[str, Any] = generation_kwargs
 
         # Load data
         logger.info(f"Loading data from {input_file}")
@@ -118,22 +114,32 @@ class LogProbsAttack(BaseAttack):
         if missing_columns:
             raise ValueError(f"Missing required columns: {missing_columns}")
 
-        # Load model and tokenizer
-        logger.info(f"Loading model: {model_path}")
-        self.model, self.tokenizer = load_model_and_tokenizer(  # pyre-ignore
-            model_path, device=device
-        )
-        logger.info("Model loaded successfully. LogProbs attack is ready to run")
+        logger.info("Logprobs attack is ready to run")
 
     def run_attack(self) -> ProbabilisticMemorizationAnalysisInput:
-        # Process data - TODO: Implement log probabilities extraction logic
-        logger.info("Executing log probabilities attack")
+        # Process data
+        logger.info("Executing logprobs attack")
 
-        # TODO: Replace with actual logprobs extraction using self.model.get_logprobs()
+        prompts = self.input_df[self.prompt_column].tolist()
+        targets = self.input_df[self.target_column].tolist()
+
+        # Extract logprobs using the predictor
+        logger.info(f"Extracting logprobs for {len(prompts)} prompt-target pairs")
+        logprobs_tensors = self.predictor.get_logprobs(
+            prompts=prompts,
+            targets=targets,
+            batch_size=self.batch_size,
+            **self.generation_kwargs,
+        )
+
+        # Convert tensors to fully nested lists for JSON serialization
+        logprobs_list = [
+            tensor.tolist() if hasattr(tensor, "tolist") else tensor
+            for tensor in logprobs_tensors
+        ]
+
         processed_df = self.input_df.copy()
-        processed_df[self.output_column] = [
-            [] for _ in range(len(processed_df))
-        ]  # Placeholder
+        processed_df[self.output_column] = logprobs_list
 
         logger.info("Processing complete")
 
@@ -151,4 +157,5 @@ class LogProbsAttack(BaseAttack):
             generation_df=processed_df,
             prob_threshold=self.prob_threshold,
             n_values=self.n_values,
+            logprobs_column=self.output_column,
         )
