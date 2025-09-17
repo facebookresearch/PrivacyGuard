@@ -13,11 +13,8 @@ from privacy_guard.analysis.extraction.probabilistic_memorization_analysis_from_
 )
 from privacy_guard.attacks.base_attack import BaseAttack
 
-from privacy_guard.attacks.extraction.utils.data_utils import (
-    load_data,
-    load_model_and_tokenizer,
-    save_results,
-)
+from privacy_guard.attacks.extraction.predictors.base_predictor import BasePredictor
+from privacy_guard.attacks.extraction.utils.data_utils import load_data, save_results
 
 
 def setup_logger() -> logging.Logger:
@@ -68,8 +65,7 @@ class LogitsAttack(BaseAttack):
         --target_column: Name of the target column in the input file
         --output_column: Name of the output column in the output dataframe
         --batch_size: Batch size for processing
-        --temp: Temperature parameter for sampling
-        --topK: TopK parameter for sampling
+        --generation_kwargs: Keyword arguments for generation (e.g., temp, top_k)
         --prob_threshold: Threshold for comparing model probabilities
         --n_values: optional list of n values for computing corresponding probabilities of model outputting the target in n attempts. Refer to https://arxiv.org/abs/2410.19482 for details.
     """
@@ -78,19 +74,16 @@ class LogitsAttack(BaseAttack):
         self,
         input_file: str,
         output_file: str | None,
-        model_path: str,
+        predictor: BasePredictor,
         input_format: FormatType = "jsonl",
         output_format: FormatType | None = "jsonl",
-        device: str = "cuda",
         prompt_column: str = "prompt",
         target_column: str = "target",
         output_column: str = "prediction_logits",
-        batch_size: int = 4,
-        temp: float = 1.0,
-        topK: int = 50,
+        batch_size: int = 1,
         prob_threshold: float = 0.5,
         n_values: Optional[List[int]] = None,
-        **model_kwargs: Dict[str, Any],
+        **generation_kwargs: Any,
     ) -> None:
         if output_file is None and output_format is not None:
             logger.warning(
@@ -101,17 +94,14 @@ class LogitsAttack(BaseAttack):
         self.output_file = output_file
         self.input_format = input_format
         self.output_format = output_format
-        self.model_path = model_path
-        self.device = device
+        self.predictor = predictor
         self.prompt_column = prompt_column
         self.target_column = target_column
         self.output_column = output_column
         self.batch_size = batch_size
-        self.temp = temp
-        self.topK = topK
+        self.generation_kwargs: Dict[str, Any] = generation_kwargs
         self.prob_threshold = prob_threshold
         self.n_values = n_values
-        self.model_kwargs: Dict[str, Any] = model_kwargs
 
         # Load data
         logger.info(f"Loading data from {input_file}")
@@ -124,22 +114,29 @@ class LogitsAttack(BaseAttack):
         if missing_columns:
             raise ValueError(f"Missing required columns: {missing_columns}")
 
-        # Load model and tokenizer
-        logger.info(f"Loading model: {model_path}")
-        self.model, self.tokenizer = load_model_and_tokenizer(  # pyre-ignore
-            model_path, device=device
-        )
-        logger.info("Model loaded successfully. Logits attack is ready to run")
+        logger.info("Logits attack is ready to run")
 
     def run_attack(self) -> ProbabilisticMemorizationAnalysisFromLogitsInput:
-        # Process data - TODO: Implement logits extraction logic
+        # Process data
         logger.info("Executing logits attack")
 
-        # TODO: Replace with actual logits extraction using self.model.get_logits()
+        prompts = self.input_df[self.prompt_column].tolist()
+        targets = self.input_df[self.target_column].tolist()
+
+        # Extract logits using the predictor
+        logger.info(f"Extracting logits for {len(prompts)} prompt-target pairs")
+        logits_tensors = self.predictor.get_logits(
+            prompts=prompts, targets=targets, batch_size=self.batch_size
+        )
+
+        # Convert tensors to fully nested lists for JSON serialization
+        logits_list = [
+            tensor.tolist() if hasattr(tensor, "tolist") else tensor
+            for tensor in logits_tensors
+        ]
+
         processed_df = self.input_df.copy()
-        processed_df[self.output_column] = [
-            [] for _ in range(len(processed_df))
-        ]  # Placeholder
+        processed_df[self.output_column] = logits_list
 
         logger.info("Processing complete")
 
@@ -155,8 +152,8 @@ class LogitsAttack(BaseAttack):
 
         return ProbabilisticMemorizationAnalysisFromLogitsInput(
             generation_df=processed_df,
-            temp=self.temp,
-            topK=self.topK,
             prob_threshold=self.prob_threshold,
             n_values=self.n_values,
+            logits_column=self.output_column,
+            **self.generation_kwargs,
         )

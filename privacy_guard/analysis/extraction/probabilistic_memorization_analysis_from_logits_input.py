@@ -2,7 +2,7 @@
 
 # pyre-strict
 import logging
-from typing import List, Optional
+from typing import Any, Dict, List, Optional
 
 import pandas as pd
 from privacy_guard.analysis.base_analysis_input import BaseAnalysisInput
@@ -16,32 +16,29 @@ class ProbabilisticMemorizationAnalysisFromLogitsInput(BaseAnalysisInput):
     Takes in a single dataframe of generation data with prediction logits.
 
     args:
-        generation_df: dataframe containing prediction_logits column
-        temp: temperature parameter for sampling
-        topK: topK parameter for sampling
+        generation_df: dataframe containing logits column
         prob_threshold: threshold for comparing model probabilities
         n_values: optional list of n values for computing corresponding probabilities of model outputting the target in n attempts. Refer to https://arxiv.org/abs/2410.19482 for details.
+        logits_column: name of the column containing logits (default: "prediction_logits")
+        **generation_kwargs: keyword arguments for generation (e.g., temp, top_k)
     """
-
-    REQUIRED_COLUMNS = {
-        "prediction_logits",
-    }
 
     def __init__(
         self,
         generation_df: pd.DataFrame,
-        temp: float,
-        topK: int,
         prob_threshold: float,
         n_values: Optional[List[int]] = None,
+        logits_column: str = "prediction_logits",
+        **generation_kwargs: Any,
     ) -> None:
-        self.temp: float = temp
-        self.topK: int = topK
+        self.generation_kwargs: Dict[str, Any] = generation_kwargs
         self.prob_threshold: float = prob_threshold
         self.n_values: List[int] = n_values or []
+        self.logits_column: str = logits_column
 
         # Validate required columns
-        missing_columns = self.REQUIRED_COLUMNS - set(generation_df.columns)
+        required_columns = {logits_column}
+        missing_columns = required_columns - set(generation_df.columns)
         if missing_columns:
             raise ValueError(f"Missing required columns: {missing_columns}")
 

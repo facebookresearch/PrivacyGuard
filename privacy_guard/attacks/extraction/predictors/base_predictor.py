@@ -32,13 +32,16 @@ class BasePredictor(ABC):
         pass
 
     @abstractmethod
-    def get_logits(self, prompts: List[str], targets: List[str]) -> List[torch.Tensor]:
+    def get_logits(
+        self, prompts: List[str], targets: List[str], batch_size: int = 1
+    ) -> List[torch.Tensor]:
         """
         Compute logits for target sequences given prompts.
 
         Args:
             prompts: List of input prompts
             targets: List of target sequences to compute logits for
+            batch_size: Number of sequences to process in each batch (default: 1)
 
         Returns:
             List of tensors, each with shape (target_length, vocab_size) for the
