@@ -5,122 +5,135 @@ import os
 import tempfile
 import unittest
 
-from unittest.mock import ANY, MagicMock, patch
+from unittest.mock import MagicMock
 
-import pandas as pd
 from privacy_guard.attacks.extraction.generation_attack import GenerationAttack
 
 
 class TestGenerationAttack(unittest.TestCase):
     def setUp(self) -> None:
         """Set up test data and mocks."""
-        self.generation_kwargs = {"temperature": 1, "top_k": 40}
         self.input_file = tempfile.NamedTemporaryFile(suffix=".jsonl")
         self.input_file_name = self.input_file.name
 
         with open(self.input_file_name, "w") as f:
             f.write('{"id": 1, "target": "Sample text 1", "prompt": "prompt 1"}\n')
-            f.write('{"id": 2, "target": "Sample text 2", "prompt": "prompt 1"}\n')
+            f.write('{"id": 2, "target": "Sample text 2", "prompt": "prompt 2"}\n')
 
         self.output_file = tempfile.NamedTemporaryFile(suffix=".jsonl")
         self.output_file_name = self.output_file.name
 
-        # Mock model outputs
-        self.mock_model_outputs = pd.DataFrame(
-            [
-                {
-                    "id": 1,
-                    "target": "Sample text 1",
-                    "prompt": "prompt 1",
-                    "prediction": "pred 1",
-                },
-                {
-                    "id": 2,
-                    "target": "Sample text 2",
-                    "prompt": "prompt 1",
-                    "prediction": "pred 2",
-                },
-            ]
-        )
+        # Mock predictor
+        self.mock_predictor = MagicMock()
+        self.mock_predictor.generate.return_value = [
+            "generated text 1",
+            "generated text 2",
+        ]
 
-        # Create simple mocks for model and tokenizer
-        # These are only used as parameters and not actually called in our tests
-        # since we're mocking process_with_llm
-        self.mock_model = MagicMock(device="cpu")
-        self.mock_tokenizer = MagicMock()
-
-    @patch("privacy_guard.attacks.extraction.generation_attack.process_dataframe")
-    @patch(
-        "privacy_guard.attacks.extraction.generation_attack.load_model_and_tokenizer"
-    )
-    def test_process_dataframe(
-        self,
-        mock_load_model_and_tokenizer: MagicMock,
-        mock_process_dataframe: MagicMock,
-    ) -> None:
-        mock_process_dataframe.return_value = self.mock_model_outputs
-        mock_load_model_and_tokenizer.side_effect
-        mock_load_model_and_tokenizer.return_value = (
-            self.mock_model,
-            self.mock_tokenizer,
-        )
-
+    def test_generation_attack_no_output_file(self) -> None:
+        """Test generation attack without output file."""
         generation_attack = GenerationAttack(
-            task="pretrain",
             input_file=self.input_file_name,
             output_file=None,
-            model_path="does/not/exist",
-            **self.generation_kwargs,  # pyre-ignore Incompatible parameter type [6]
+            predictor=self.mock_predictor,
+            temperature=1,
+            top_k=40,
         )
 
-        _ = generation_attack.run_attack()
+        result = generation_attack.run_attack()
 
-        mock_process_dataframe.assert_called_once_with(
-            df=ANY,
-            input_column="prompt",
-            output_column="prediction",
-            model=self.mock_model,
-            tokenizer=self.mock_tokenizer,
-            task="pretrain",
-            batch_size=generation_attack.batch_size,
-            max_new_tokens=generation_attack.max_new_tokens,
-            **self.generation_kwargs,
+        # Verify predictor was called correctly
+        self.mock_predictor.generate.assert_called_once_with(
+            prompts=["prompt 1", "prompt 2"], temperature=1, top_k=40
         )
 
-    @patch("privacy_guard.attacks.extraction.generation_attack.process_dataframe")
-    @patch(
-        "privacy_guard.attacks.extraction.generation_attack.load_model_and_tokenizer"
-    )
-    def test_process_dataframe_output_path(
-        self,
-        mock_load_model_and_tokenizer: MagicMock,
-        mock_process_dataframe: MagicMock,
-    ) -> None:
-        mock_process_dataframe.return_value = self.mock_model_outputs
-        mock_load_model_and_tokenizer.side_effect
-        mock_load_model_and_tokenizer.return_value = (
-            self.mock_model,
-            self.mock_tokenizer,
+        # Verify result structure
+        self.assertIsNotNone(result)
+        self.assertEqual(len(result.generation_df), 2)
+        self.assertIn("prediction", result.generation_df.columns)
+        self.assertEqual(
+            result.generation_df["prediction"].tolist(),
+            ["generated text 1", "generated text 2"],
         )
 
+    def test_generation_attack_with_output_file(self) -> None:
+        """Test generation attack with output file."""
         generation_attack = GenerationAttack(
-            task="instruct",
             input_file=self.input_file_name,
             output_file=self.output_file_name,
-            model_path="does/not/exist",
+            predictor=self.mock_predictor,
+            temperature=1,
+            top_k=40,
         )
 
-        _ = generation_attack.run_attack()
+        result = generation_attack.run_attack()
 
-        mock_process_dataframe.assert_called_once_with(
-            df=ANY,
-            input_column="prompt",
-            output_column="prediction",
-            model=self.mock_model,
-            tokenizer=self.mock_tokenizer,
-            task="instruct",
-            batch_size=generation_attack.batch_size,
-            max_new_tokens=generation_attack.max_new_tokens,
+        # Verify predictor was called correctly
+        self.mock_predictor.generate.assert_called_once_with(
+            prompts=["prompt 1", "prompt 2"], temperature=1, top_k=40
         )
 
+        # Verify output file was created
         self.assertTrue(os.path.getsize(self.output_file_name) > 0)
+
+        # Verify result structure
+        self.assertIsNotNone(result)
+        self.assertEqual(len(result.generation_df), 2)
+        self.assertIn("prediction", result.generation_df.columns)
+
+    def test_generation_attack_custom_columns(self) -> None:
+        """Test generation attack with custom column names."""
+        # Create input file with custom column name
+        custom_input_file = tempfile.NamedTemporaryFile(suffix=".jsonl")
+        with open(custom_input_file.name, "w") as f:
+            f.write(
+                '{"id": 1, "custom_prompt": "test prompt 1", "custom_target": "target text 1"}\n'
+            )
+            f.write(
+                '{"id": 2, "custom_prompt": "test prompt 2", "custom_target": "target text 2"}\n'
+            )
+
+        generation_attack = GenerationAttack(
+            input_file=custom_input_file.name,
+            output_file=None,
+            predictor=self.mock_predictor,
+            input_column="custom_prompt",
+            target_column="custom_target",
+            output_column="custom_output",
+        )
+
+        result = generation_attack.run_attack()
+
+        # Verify predictor was called with correct prompts
+        self.mock_predictor.generate.assert_called_once_with(
+            prompts=["test prompt 1", "test prompt 2"]
+        )
+
+        # Verify custom column names
+        self.assertIn("custom_output", result.generation_df.columns)
+        self.assertEqual(result.target_key, "custom_target")
+        self.assertEqual(result.prompt_key, "custom_prompt")
+        self.assertEqual(result.generation_key, "custom_output")
+        custom_input_file.close()
+
+    def test_generation_attack_missing_column(self) -> None:
+        """Test generation attack with missing required column."""
+        # Create input file without prompt column
+        bad_input_file = tempfile.NamedTemporaryFile(suffix=".jsonl")
+        with open(bad_input_file.name, "w") as f:
+            f.write('{"id": 1, "other_column": "value 1"}\n')
+
+        with self.assertRaises(ValueError) as context:
+            GenerationAttack(
+                input_file=bad_input_file.name,
+                output_file=None,
+                predictor=self.mock_predictor,
+            )
+
+        self.assertIn("Missing required columns", str(context.exception))
+        bad_input_file.close()
+
+    def tearDown(self) -> None:
+        """Clean up temporary files."""
+        self.input_file.close()
+        self.output_file.close()
