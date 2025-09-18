@@ -64,6 +64,7 @@ class LogitsAttack(BaseAttack):
         --prompt_column: Name of the prompt column in the input file
         --target_column: Name of the target column in the input file
         --output_column: Name of the output column in the output dataframe
+        --target_tokens_column: Name of the target tokens column in the output dataframe
         --batch_size: Batch size for processing
         --generation_kwargs: Keyword arguments for generation (e.g., temp, top_k)
         --prob_threshold: Threshold for comparing model probabilities
@@ -80,6 +81,7 @@ class LogitsAttack(BaseAttack):
         prompt_column: str = "prompt",
         target_column: str = "target",
         output_column: str = "prediction_logits",
+        target_tokens_column: str = "target_tokens",
         batch_size: int = 1,
         prob_threshold: float = 0.5,
         n_values: Optional[List[int]] = None,
@@ -98,6 +100,7 @@ class LogitsAttack(BaseAttack):
         self.prompt_column = prompt_column
         self.target_column = target_column
         self.output_column = output_column
+        self.target_tokens_column = target_tokens_column
         self.batch_size = batch_size
         self.generation_kwargs: Dict[str, Any] = generation_kwargs
         self.prob_threshold = prob_threshold
@@ -135,8 +138,36 @@ class LogitsAttack(BaseAttack):
             for tensor in logits_tensors
         ]
 
+        # Tokenize targets to create target_tokens column
+        logger.info("Tokenizing targets to create target_tokens column")
+        target_tokens_list = []
+
+        # Check if predictor has a tokenizer (e.g., HuggingFacePredictor)
+        if hasattr(self.predictor, "tokenizer"):
+            # pyre-ignore[16]: We checked for the attribute existence above
+            tokenizer = self.predictor.tokenizer
+            for target in targets:
+                # Tokenize the target without special tokens to get token IDs
+                target_tokens = tokenizer(
+                    target,
+                    return_tensors="pt",
+                    truncation=True,
+                    add_special_tokens=False,
+                )
+                # Convert to list and remove batch dimension
+                token_ids = target_tokens.input_ids[0].tolist()
+                target_tokens_list.append(token_ids)
+        else:
+            # If predictor doesn't have a tokenizer, we can't tokenize
+            logger.warning(
+                "Predictor does not have a tokenizer. Cannot create target_tokens column."
+            )
+            # Create empty lists as placeholders
+            target_tokens_list = [[] for _ in targets]
+
         processed_df = self.input_df.copy()
         processed_df[self.output_column] = logits_list
+        processed_df[self.target_tokens_column] = target_tokens_list
 
         logger.info("Processing complete")
 
@@ -155,5 +186,6 @@ class LogitsAttack(BaseAttack):
             prob_threshold=self.prob_threshold,
             n_values=self.n_values,
             logits_column=self.output_column,
+            target_tokens_column=self.target_tokens_column,
             **self.generation_kwargs,
         )
