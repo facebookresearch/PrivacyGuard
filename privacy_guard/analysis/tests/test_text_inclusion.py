@@ -13,8 +13,8 @@ from privacy_guard.analysis.extraction.text_inclusion_analysis_input import (
     TextInclusionAnalysisInput,
 )
 from privacy_guard.analysis.extraction.text_inclusion_analysis_node import (
-    _lcs_helper,
-    _lcs_helper_bound,
+    _char_level_longest_common_substring_helper,
+    _char_level_longest_common_substring_helper_bound,
     TextInclusionAnalysisNode,
     TextInclusionAnalysisNodeOutput,
 )
@@ -305,16 +305,31 @@ class TestAnalysisInput(unittest.TestCase):
         s2 = ("x" * 50) + ("t" * 200) + ("c" * 150) + ("t" * 200)
 
         # LCS is t, 150
-        self.assertEqual(_lcs_helper_bound(s1=s1, s2=s2, target=150), 150)
-        self.assertEqual(_lcs_helper_bound(s1=s1, s2=s2, target=50), 50)
+        self.assertEqual(
+            _char_level_longest_common_substring_helper_bound(s1=s1, s2=s2, target=150),
+            150,
+        )
+        self.assertEqual(
+            _char_level_longest_common_substring_helper_bound(s1=s1, s2=s2, target=50),
+            50,
+        )
 
-        self.assertEqual(_lcs_helper(s1=s1, s2=s2), 160)
+        self.assertEqual(_char_level_longest_common_substring_helper(s1=s1, s2=s2), 160)
 
         s1 = "a" * 200
         s2 = "b" * 200 + "a" * 20
 
-        self.assertEqual(_lcs_helper_bound(s1=s1, s2=s2, target=150), 0)
-        self.assertEqual(_lcs_helper_bound(s1=s1, s2=s2, target=50), 0)
-        self.assertEqual(_lcs_helper_bound(s1=s1, s2=s2, target=10), 10)
+        self.assertEqual(
+            _char_level_longest_common_substring_helper_bound(s1=s1, s2=s2, target=150),
+            0,
+        )
+        self.assertEqual(
+            _char_level_longest_common_substring_helper_bound(s1=s1, s2=s2, target=50),
+            0,
+        )
+        self.assertEqual(
+            _char_level_longest_common_substring_helper_bound(s1=s1, s2=s2, target=10),
+            10,
+        )
 
-        self.assertEqual(_lcs_helper(s1=s1, s2=s2), 20)
+        self.assertEqual(_char_level_longest_common_substring_helper(s1=s1, s2=s2), 20)

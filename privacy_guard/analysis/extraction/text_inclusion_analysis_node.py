@@ -65,9 +65,12 @@ def _clean_text(text: str) -> str:
     return cleaned_text
 
 
-def _lcs_helper_bound(s1: str, s2: str, target: int = 150) -> int:
+def _char_level_longest_common_substring_helper_bound(
+    s1: str, s2: str, target: int = 150
+) -> int:
     """
     To save on computation, check existance of a common substring of length target.
+    Different from longest common subsequence (commonly known as LCS), longest common substring is the longest common CONSECUTIVE subsequence. Please use with caution.
     """
 
     max_length = 0
@@ -89,7 +92,12 @@ def _lcs_helper_bound(s1: str, s2: str, target: int = 150) -> int:
     return 0
 
 
-def _lcs_helper(s1: str, s2: str) -> int:
+def _char_level_longest_common_substring_helper(s1: str, s2: str) -> int:
+    """
+    Implementation of the longest common substring at character level.
+    Different from longest common subsequence (commonly known as LCS), longest common substring is the longest common CONSECUTIVE subsequence. Please use with caution.
+    """
+
     # Initialize variables to store the longest common substring and its length
 
     max_length = 0
@@ -259,25 +267,29 @@ class TextInclusionAnalysisNode(BaseAnalysisNode):
                 clean_target = _clean_text(target)
 
                 if lcs_bound_config is not None:
-                    lcs = _lcs_helper_bound(
+                    lcs = _char_level_longest_common_substring_helper_bound(
                         s1=clean_target,
                         s2=comparison_text,
                         target=lcs_bound_config.lcs_len_target,
                     )
                 else:
-                    lcs = _lcs_helper(s1=clean_target, s2=comparison_text)
+                    lcs = _char_level_longest_common_substring_helper(
+                        s1=clean_target, s2=comparison_text
+                    )
                 output_dict["lcs"][clean_target] = lcs
                 lcs_score = -1 if len(clean_target) <= 0 else lcs / len(clean_target)
                 output_dict["lcs_score"][clean_target] = lcs_score
 
                 if lcs_bound_config is not None:
-                    fp = _lcs_helper_bound(
+                    fp = _char_level_longest_common_substring_helper_bound(
                         s1=clean_target,
                         s2=fp_text,
                         target=lcs_bound_config.fp_len_target,
                     )
                 else:
-                    fp = _lcs_helper(s1=clean_target, s2=fp_text)
+                    fp = _char_level_longest_common_substring_helper(
+                        s1=clean_target, s2=fp_text
+                    )
                 output_dict["fp"][clean_target] = fp
 
                 fp_score = -1 if len(clean_target) <= 0 else fp / len(clean_target)
