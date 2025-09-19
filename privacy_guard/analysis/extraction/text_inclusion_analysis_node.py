@@ -1,6 +1,7 @@
 # (c) Meta Platforms, Inc. and affiliates. Confidential and proprietary.
 
 # pyre-strict
+import difflib
 import string
 
 from collections import defaultdict
@@ -63,6 +64,52 @@ def _clean_text(text: str) -> str:
     # Strip leading and trailing whitespace
     cleaned_text = cleaned_text.strip()
     return cleaned_text
+
+
+def _word_level_longest_common_subsequence_helper(
+    s1: str, s2: str, autojunk: bool = True
+) -> int:
+    """
+    Implementation of the longest common subsequence at word level.
+
+    Output: number of words contained in the longest common subsequence.
+    """
+
+    # Split the string to words
+    s1_list = s1.split()
+    s2_list = s2.split()
+
+    # Find matching blocks
+    matcher = difflib.SequenceMatcher(None, s1_list, s2_list, autojunk=autojunk)
+    matching_blocks = matcher.get_matching_blocks()
+
+    # Initialize the length of matched words count
+    matched_words_count = 0
+    for block in matching_blocks:
+        if block.size > 0:
+            matched_words_count += block.size
+    return matched_words_count
+
+
+def _char_level_longest_common_subsequence_helper(
+    s1: str, s2: str, autojunk: bool = True
+) -> int:
+    """
+    Implementation of the longest common subsequence at character level.
+
+    Output: number of characters contained in the longest common subsequence.
+    """
+
+    # Find matching blocks
+    matcher = difflib.SequenceMatcher(None, s1, s2, autojunk=autojunk)
+    matching_blocks = matcher.get_matching_blocks()
+
+    # Initialize the length of matched chars count
+    matched_chars_count = 0
+    for block in matching_blocks:
+        if block.size > 0:
+            matched_chars_count += block.size
+    return matched_chars_count
 
 
 def _char_level_longest_common_substring_helper_bound(
