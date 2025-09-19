@@ -13,8 +13,10 @@ from privacy_guard.analysis.extraction.text_inclusion_analysis_input import (
     TextInclusionAnalysisInput,
 )
 from privacy_guard.analysis.extraction.text_inclusion_analysis_node import (
+    _char_level_longest_common_subsequence_helper,
     _char_level_longest_common_substring_helper,
     _char_level_longest_common_substring_helper_bound,
+    _word_level_longest_common_subsequence_helper,
     TextInclusionAnalysisNode,
     TextInclusionAnalysisNodeOutput,
 )
@@ -300,7 +302,7 @@ class TestAnalysisInput(unittest.TestCase):
         self.assertEqual(len(results["exact_match"]), 0)
         self.assertEqual(len(results["inclusion_score"]), 0)
 
-    def test_bounded_lcs_match(self) -> None:
+    def test_bounded_longest_common_substring_match(self) -> None:
         s1 = ("w" * 50) + ("t" * 160) + ("b" * 50) + ("t" * 155)
         s2 = ("x" * 50) + ("t" * 200) + ("c" * 150) + ("t" * 200)
 
@@ -333,3 +335,89 @@ class TestAnalysisInput(unittest.TestCase):
         )
 
         self.assertEqual(_char_level_longest_common_substring_helper(s1=s1, s2=s2), 20)
+
+    def test_word_level_longest_common_susequence_match(self) -> None:
+        s1 = (
+            ("w" * 50)
+            + " "
+            + ("t" * 160)
+            + " "
+            + ("b" * 50)
+            + " "
+            + ("t" * 155)
+            + " "
+            + ("t" * 130)
+        )
+        s2 = (
+            ("x" * 50)
+            + " "
+            + ("t" * 160)
+            + " "
+            + ("c" * 150)
+            + " "
+            + ("t" * 200)
+            + " "
+            + ("t" * 130)
+        )
+
+        self.assertEqual(_word_level_longest_common_subsequence_helper(s1=s1, s2=s2), 2)
+        self.assertEqual(_word_level_longest_common_subsequence_helper(s1=s1, s2=s1), 5)
+
+        s1 = "a b a"
+        s2 = "c a b a d"
+        s3 = "a d b a"
+
+        self.assertEqual(_word_level_longest_common_subsequence_helper(s1=s1, s2=s2), 3)
+        self.assertEqual(_word_level_longest_common_subsequence_helper(s1=s2, s2=s3), 3)
+        self.assertEqual(_word_level_longest_common_subsequence_helper(s1=s1, s2=s3), 3)
+
+    def test_char_level_longest_common_susequence_match(self) -> None:
+        s1 = ("w" * 5) + ("t" * 16) + ("b" * 5) + ("t" * 15)
+        s2 = ("x" * 5) + ("t" * 16) + ("c" * 15) + ("t" * 20)
+
+        self.assertEqual(
+            _char_level_longest_common_subsequence_helper(s1=s1, s2=s2), 31
+        )
+        self.assertEqual(
+            _char_level_longest_common_subsequence_helper(s1=s1, s2=s1), 41
+        )
+
+        s1 = "a b a"
+        s2 = "c a b a d"
+        s3 = "a d b a e"
+
+        self.assertEqual(_char_level_longest_common_subsequence_helper(s1=s1, s2=s2), 5)
+        self.assertEqual(_char_level_longest_common_subsequence_helper(s1=s2, s2=s3), 6)
+        self.assertEqual(_char_level_longest_common_subsequence_helper(s1=s1, s2=s3), 5)
+
+    def test_longest_common_susequence_match_autojunk(self) -> None:
+        s1 = ("w" * 50) + ("t" * 160) + ("b" * 50) + ("t" * 150)
+        s2 = ("x" * 50) + ("t" * 160) + ("c" * 150) + ("t" * 200)
+
+        self.assertEqual(
+            _char_level_longest_common_subsequence_helper(s1=s1, s2=s2, autojunk=False),
+            310,
+        )
+        self.assertEqual(
+            _char_level_longest_common_subsequence_helper(s1=s1, s2=s2, autojunk=True),
+            0,
+        )
+
+        s1 = (
+            ("w " * 50)
+            + ("t " * 160)
+            + ("b " * 50)
+            + ("tt " * 150)
+            + ("t " * 100)
+            + "end1"
+        )
+        s2 = ("x " * 50) + ("t " * 160) + ("c " * 150) + ("t " * 200) + "end2"
+
+        self.assertEqual(
+            _word_level_longest_common_subsequence_helper(s1=s1, s2=s2, autojunk=False),
+            260,
+        )
+        self.assertEqual(
+            _word_level_longest_common_subsequence_helper(s1=s1, s2=s2, autojunk=True),
+            0,
+        )
