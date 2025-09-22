@@ -1,7 +1,7 @@
 #!/usr/bin/env -S grimaldi --kernel privacy_guard_local
 # fmt: off
 # flake8: noqa
-
+# FILE_UID: ab346f8b-b17c-4361-9be6-c8ac7f687f34
 # NOTEBOOK_NUMBER: N8016278 (1681205635878446)
 
 """:md
@@ -19,7 +19,7 @@ This tutorial will walk through the process of
 
 """
 
-""":py '24336430619370728'"""
+""":py '2063607454177818'"""
 import os
 
 working_directory = "~/privacy_guard_working_directory"
@@ -64,7 +64,7 @@ Next, we'll load samples from the decompressed dataset to use in extraction test
 maildir/allen-p/_sent_mail/ is a directory, containing ~600 emails
 """
 
-""":py '1119898122877239'"""
+""":py '2121430438266786'"""
 from typing import Dict, List
 
 import pandas as pd
@@ -108,7 +108,7 @@ print(f"Prepared extraction target with length: {len(extraction_targets)}")
 
 extraction_targets_df = pd.DataFrame(extraction_targets)
 
-""":py '1896546514409691'"""
+""":py '4379488659001378'"""
 # Save the dataframe to a .jsonl file
 from privacy_guard.attacks.extraction.utils.data_utils import save_results
 
@@ -143,38 +143,38 @@ This next step will use PrivacyGuard to load the Pythia model.
 After executing this tutorial, feel free to clone and experiment with other models and datasets. 
 """
 
-""":py '1242473124230053'"""
+""":py '2050040752480110'"""
 from bento import fwdproxy
-from transformers import AutoModelForCausalLM, AutoTokenizer
-
-# 1) Load the Pythia-12B model and tokenizer from Huggingface
-model_name = "EleutherAI/pythia-12b"
-
-with fwdproxy():
-    tokenizer = AutoTokenizer.from_pretrained(model_name)
-    model = AutoModelForCausalLM.from_pretrained(model_name)
-
-print(f"Loaded model '{model.config._name_or_path}' from HuggingFace")
-
-""":py '715930808148195'"""
-from bento import fwdproxy
-from privacy_guard.attacks.extraction.generation_attack import (
-    GenerationAttackCustomModel,
+from privacy_guard.attacks.extraction.predictors.huggingface_predictor import (
+    HuggingFacePredictor,
 )
 
-# 2) Prepare the GenerationAttackCustomModel
+# 1) Create a HuggingFace predictor instance using the defined class
+model_name = "EleutherAI/pythia-12b"
 
-generation_attack = GenerationAttackCustomModel(
-    input_file=extraction_targets_path, # The dataset to perform generation attack on
-    output_file=None, # When specified, saves generations to file.
-    input_column="prompt", # Column used as prompt for each generation
+print(f"Loading model '{model_name}' using HuggingFacePredictor...")
+with fwdproxy():
+    huggingface_predictor = HuggingFacePredictor(
+        model_name=model_name,
+        device="cuda",
+        model_kwargs={"torch_dtype": "auto"},  # Use appropriate dtype
+        tokenizer_kwargs={},
+    )
+
+print(f"Loaded model '{huggingface_predictor.model_name}' from HuggingFace")
+
+""":py '2258454481272211'"""
+from privacy_guard.attacks.extraction.generation_attack import GenerationAttack
+
+# 2) Prepare the GenerationAttackCustomModel
+generation_attack = GenerationAttack(
+    input_file=extraction_targets_path,  # The dataset to perform generation attack on
+    output_file=None,  # When specified, saves generations to file.
+    predictor=huggingface_predictor,  # Pass the predictor instead of model/tokenizer
+    input_column="prompt",  # Column used as prompt for each generation
     output_column="prediction",
-    device="cpu",
     batch_size=4,
     max_new_tokens=50,
-    task="pretrain",
-    tokenizer=tokenizer,
-    model=model,
 )
 
 """:md
@@ -183,7 +183,7 @@ generation_attack = GenerationAttackCustomModel(
 Now that GenerationAttack has been configured and initialized, the we can perform the generation attack using "run_attack"
 """
 
-""":py '1064273405523687'"""
+""":py '1754601205225953'"""
 # 3) Execute the GenerationAttack using "run_attack"
 
 attack_result = generation_attack.run_attack()
@@ -196,7 +196,7 @@ Now that the generation attack is complete, we can perform Privacy Analysis to c
 We'll look at the longest common substring score for each sample in the dataset, alonside the % of the target extracted. 
 """
 
-""":py '1595938211791093'"""
+""":py '1570230033826857'"""
 from typing import Any, Dict, List
 
 import pandas as pd
@@ -254,5 +254,9 @@ This tutorial will walk through the process of
 3. Running TextInclusionAttack and TextInclusionAnalysis to measure extraction rates of the ENRON email dataset, and aggregating the extraction rates for the sample dataset. 
 
 Utilize this tutorial as a base for performing extraction attacks for custom models and datasets. 
+
+"""
+
+""":md
 
 """
