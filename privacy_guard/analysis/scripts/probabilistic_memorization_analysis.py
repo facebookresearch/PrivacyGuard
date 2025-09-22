@@ -1,13 +1,9 @@
-# (c) Meta Platforms, Inc. and affiliates. Confidential and proprietary.
+# Copyright (c) Meta Platforms, Inc. and affiliates.
+#
+# This source code is licensed under the MIT license found in the
+# LICENSE file in the root directory of this source tree.
 
 # pyre-strict
-
-# Example usage:
-# buck run //privacy_guard/analysis/scripts:probabilistic_memorization_analysis -- \
-#   --generation_path /path/to/generation_data.jsonl \
-#   --prob_threshold 0.5 \
-#   --output_path /path/to/output_results.jsonl \
-#   --n_values "10,100,1000"
 
 import argparse
 import logging
