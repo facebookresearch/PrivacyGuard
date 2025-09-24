@@ -41,6 +41,8 @@ class TextInclusionAnalysisNodeOutput(BaseAnalysisOutput):
     edit_similarity_score: Optional[pd.Series]
     filtered_true_positive_list: list[str] | None
     augmented_output_dataset: pd.DataFrame
+    char_level_longest_common_subsequence: Optional[pd.Series]
+    word_level_longest_common_subsequence: Optional[pd.Series]
 
 
 def _clean_text(text: str) -> str:
@@ -219,6 +221,32 @@ class TextInclusionAnalysisNode(BaseAnalysisNode):
 
         super().__init__(analysis_input=analysis_input)
 
+    def _compute_word_level_longest_common_subsequence_helper(
+        self, row: pd.Series, s1_column: str | None = None, s2_column: str | None = None
+    ) -> int:
+        """Compute char level longest common subsequence between target and generation text.
+        Text are cleaned first.
+
+        Returns:
+            int: Number of shared words between the two strings.
+        """
+        s1 = _clean_text(row[s1_column or self.target_key])
+        s2 = _clean_text(row[s2_column or self.generation_key])
+        return _word_level_longest_common_subsequence_helper(s1, s2)
+
+    def _compute_char_level_longest_common_subsequence_helper(
+        self, row: pd.Series, s1_column: str | None = None, s2_column: str | None = None
+    ) -> int:
+        """Compute word level longest common subsequence between target and generation text.
+        Text are cleaned first.
+
+        Returns:
+            int: Number of shared words between the two strings.
+        """
+        s1 = _clean_text(row[s1_column or self.target_key])
+        s2 = _clean_text(row[s2_column or self.generation_key])
+        return _char_level_longest_common_subsequence_helper(s1, s2)
+
     def _compute_edit_similarity(
         self, row: pd.Series, s1_column: str | None = None, s2_column: str | None = None
     ) -> int:
@@ -389,9 +417,11 @@ class TextInclusionAnalysisNode(BaseAnalysisNode):
             edit_similarity_score=None,
             filtered_true_positive_list=None,
             augmented_output_dataset=generation_df,
+            word_level_longest_common_subsequence=None,
+            char_level_longest_common_subsequence=None,
         )
 
-        if not analysis_input.disable_lcs:
+        if not analysis_input.disable_longest_common_substring:
             # Longest common substring
 
             lcs_result = generation_df.progress_apply(
@@ -424,5 +454,27 @@ class TextInclusionAnalysisNode(BaseAnalysisNode):
 
             outputs.edit_similarity = generation_df["edit_similarity"]
             outputs.edit_similarity_score = generation_df["edit_similarity_score"]
+
+        if not analysis_input.disable_word_level_longest_common_subsequence:
+            generation_df["word_level_longest_common_subsequence"] = (
+                generation_df.progress_apply(
+                    self._compute_word_level_longest_common_subsequence_helper, axis=1
+                )
+            )
+
+            outputs.word_level_longest_common_subsequence = generation_df[
+                "word_level_longest_common_subsequence"
+            ]
+
+        if not analysis_input.disable_char_level_longest_common_subsequence:
+            generation_df["char_level_longest_common_subsequence"] = (
+                generation_df.progress_apply(
+                    self._compute_char_level_longest_common_subsequence_helper, axis=1
+                )
+            )
+
+            outputs.char_level_longest_common_subsequence = generation_df[
+                "char_level_longest_common_subsequence"
+            ]
 
         return outputs

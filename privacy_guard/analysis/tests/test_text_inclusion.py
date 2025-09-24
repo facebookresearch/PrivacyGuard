@@ -179,7 +179,7 @@ class TestAnalysisInput(unittest.TestCase):
 
     def test_text_inclusion_no_lcs(self) -> None:
         analysis_input = TextInclusionAnalysisInput(
-            generation_df=pd.DataFrame(self.data), disable_lcs=True
+            generation_df=pd.DataFrame(self.data), disable_longest_common_substring=True
         )
         analysis_node = TextInclusionAnalysisNode(analysis_input=analysis_input)
 
@@ -198,6 +198,9 @@ class TestAnalysisInput(unittest.TestCase):
         self.assertIn("edit_similarity_score", results)
         self.assertIsNotNone(results["edit_similarity"], None)
         self.assertIsNotNone(results["edit_similarity_score"], None)
+
+        self.assertIsNone(results["char_level_longest_common_subsequence"])
+        self.assertIsNotNone(results["word_level_longest_common_subsequence"])
 
     def test_text_inclusion_no_similarity(self) -> None:
         analysis_input = TextInclusionAnalysisInput(
@@ -218,6 +221,40 @@ class TestAnalysisInput(unittest.TestCase):
 
         self.assertEqual(results["edit_similarity"], None)
         self.assertEqual(results["edit_similarity_score"], None)
+
+        self.assertIsNone(results["char_level_longest_common_subsequence"])
+        self.assertIsNotNone(results["word_level_longest_common_subsequence"])
+
+    def test_text_inclusion_with_char_level_longest_common_subsequence(self) -> None:
+        analysis_input = TextInclusionAnalysisInput(
+            generation_df=pd.DataFrame(self.data),
+            disable_char_level_longest_common_subsequence=False,
+            disable_word_level_longest_common_subsequence=False,
+        )
+        analysis_node = TextInclusionAnalysisNode(analysis_input=analysis_input)
+
+        results = analysis_node.compute_outputs()
+
+        self.assertIn("exact_match", results)
+
+        self.assertIn("inclusion_score", results)
+
+        self.assertIn("longest_common_substring", results)
+        self.assertIn("decision_targets_lcs", results)
+        self.assertIsNotNone(results["longest_common_substring"])
+        self.assertIsNotNone(results["decision_targets_lcs"])
+
+        self.assertIsNotNone(results["edit_similarity"])
+        self.assertIsNotNone(results["edit_similarity_score"])
+
+        self.assertIsNotNone(results["char_level_longest_common_subsequence"])
+        self.assertIsNotNone(results["word_level_longest_common_subsequence"])
+
+        for char_lcs, word_lcs in zip(
+            results["char_level_longest_common_subsequence"],
+            results["word_level_longest_common_subsequence"],
+        ):
+            self.assertGreaterEqual(char_lcs, word_lcs)
 
     def test_text_inclusion_augmented_output(self) -> None:
         analysis_input = TextInclusionAnalysisInput(
@@ -255,6 +292,8 @@ class TestAnalysisInput(unittest.TestCase):
             target_key="targets",
             disable_exact_match=True,
             disable_similarity=True,
+            disable_word_level_longest_common_subsequence=True,
+            disable_char_level_longest_common_subsequence=True,
         )
         multi_analysis_node = TextInclusionAnalysisNode(
             analysis_input=multi_analysis_input
