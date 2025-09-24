@@ -40,9 +40,11 @@ class TextInclusionAnalysisInput(BaseAnalysisInput):
         target_key: str = "target",
         generation_key: str = "output_text",
         disable_exact_match: bool = False,
-        disable_lcs: bool = False,
+        disable_longest_common_substring: bool = False,
         disable_similarity: bool = False,
         lcs_bound_config: LCSBoundConfig | None = None,
+        disable_word_level_longest_common_subsequence: bool = False,
+        disable_char_level_longest_common_subsequence: bool = True,
     ) -> None:
         columns = generation_df.columns.tolist()
         assert (
@@ -60,9 +62,16 @@ class TextInclusionAnalysisInput(BaseAnalysisInput):
         self.generation_key = generation_key
 
         self.disable_exact_match = disable_exact_match
-        self.disable_lcs = disable_lcs
+        self.disable_longest_common_substring = disable_longest_common_substring
         self.disable_similarity = disable_similarity
         self.lcs_bound_config = lcs_bound_config
+
+        self.disable_word_level_longest_common_subsequence = (
+            disable_word_level_longest_common_subsequence
+        )
+        self.disable_char_level_longest_common_subsequence = (
+            disable_char_level_longest_common_subsequence
+        )
 
         super().__init__(df_train_user=generation_df, df_test_user=pd.DataFrame())
 
