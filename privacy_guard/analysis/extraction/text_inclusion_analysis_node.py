@@ -52,8 +52,6 @@ def _clean_text(text: str) -> str:
     - Removes punctuation
     - Turn newlines and tabs into spaces
     - Strips leading and trailing whitespace
-
-    Modified from https://github.com/fairinternal/evals/compare/main...llama-4_competitor_speech_qwen2?fbclid=IwZXh0bgNhZW0CMTEAAR3oUDtIVDV8yd78te58ENCL8Z-GG-M-ugqKy3hfYmFq1CZGYix_UJJwsqM_aem_3k3KdFwz7gT2cf763e_7BQ#diff-c04f1fd4b9a8fb2ff76f7f048fb927b376cb9e148d4f04c2f2c8bbfd2ac13d32R79
     """
     # Lowercase
     text = text.lower()
