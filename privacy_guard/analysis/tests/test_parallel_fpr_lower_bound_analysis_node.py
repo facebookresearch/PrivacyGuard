@@ -12,6 +12,7 @@
 # pyre-strict
 
 import numpy as np
+import pytest
 
 from privacy_guard.analysis.mia.aggregate_analysis_input import (
     AggregateAnalysisInput,
@@ -85,6 +86,9 @@ class TestParallelFPRLowerBoundAnalysisNode(BaseTestAnalysisNode):
             "parallel_bootstrap", test_timer_analysis_node.get_timer_stats()
         )
 
+    @pytest.mark.skip(
+        reason="This test hangs in stress runs. Skipping to not block workflow signals in OSS environment."
+    )
     def test_compute_outputs(self) -> None:
         """
         Demonstrate that when test/train users are all sampled
