@@ -34,14 +34,19 @@ PrivacyGuard is a library that allows you to perform a privacy analysis (e.g., M
 
 ## Getting Started
 
-To work with PrivacyGuard, we recomemend cloning the repository and installing all dependencies.
+To get started, we recommend running through the PrivacyGuard tutorial notebooks. These notebooks will guide you through the usage of PrivacyGuard, and contain everything you need to execute its suite of attacks on example datasets. The tutorial notebooks can be found [here](https://github.com/facebookresearch/PrivacyGuard/tree/main/tutorial_notebooks) and are in the .ipynb tutorial format.
+
+The tutorials are pre-populated with example outputs, but utilizing Jupyter and/or Google Colab you can run the code, see the
+results, modify the analyses and see the results of your changes.
+
+
+To work and develop with PrivacyGuard, we recomemend cloning the repository and installing all dependencies.
 
 ```
 git clone https://github.com/facebookresearch/PrivacyGuard.git --depth 1
 cd PrivacyGuard
 pip install -e
 ```
-
 
 
 ## Installation
