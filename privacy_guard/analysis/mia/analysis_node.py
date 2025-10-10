@@ -152,15 +152,15 @@ class AnalysisNode(BaseAnalysisNode):
 
         return eps_cp
 
-    def _compute_ci(
-        self, array: NDArray[float], axis: int = 0
-    ) -> tuple[NDArray, NDArray]:
+    @staticmethod
+    def _compute_ci(array: NDArray[float], axis: int = 0) -> tuple[NDArray, NDArray]:
         """Compute confidence intervals (used for eps, auc, accuracy)"""
         # Sort along the specified axis
         sorted_array = np.sort(array, axis=axis)
+        axis_length = sorted_array.shape[axis]
 
-        lower_idx = max(int(0.025 * self._num_bootstrap_resampling_times) - 1, 0)
-        upper_idx = int(0.975 * self._num_bootstrap_resampling_times)
+        lower_idx = max(int(0.025 * axis_length) - 1, 0)
+        upper_idx = int(0.975 * axis_length)
 
         # Index into the sorted array at the percentile positions
         lower_bound = np.take(sorted_array, lower_idx, axis=axis)
@@ -173,8 +173,8 @@ class AnalysisNode(BaseAnalysisNode):
 
         return lower_bound, upper_bound
 
+    @staticmethod
     def _compute_bootstrap_sample_indexes(
-        self,
         num_users: int,
         sample_size: int,
     ) -> list[int]:
