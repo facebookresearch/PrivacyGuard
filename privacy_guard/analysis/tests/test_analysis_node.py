@@ -202,6 +202,38 @@ class TestAnalysisNode(BaseTestAnalysisNode):
         self.assertLessEqual(float(outputs["accuracy"]), 0.51)
         self.assertLessEqual(float(outputs["auc"]), 0.51)
 
+    def test_compute_ci_method(self) -> None:
+        """Test the confidence interval computation method."""
+        # Create test data ranging from 1 to 100
+        test_data = np.arange(1, 101)
+
+        lower_bound, upper_bound = AnalysisNode._compute_ci(test_data)
+
+        # Check that bounds are arrays
+        self.assertIsInstance(lower_bound, np.ndarray)
+        self.assertIsInstance(upper_bound, np.ndarray)
+
+        # Check that lower bound is less than upper bound
+        self.assertLess(lower_bound[0], upper_bound[0])
+
+        # For this data, 2.5th percentile should be 2.5 and 97.5th around 97.5
+        self.assertGreaterEqual(lower_bound[0], 2)
+        self.assertLessEqual(upper_bound[0], 98)
+
+    def test_compute_ci_with_2d_array(self) -> None:
+        """Test confidence interval computation with 2D arrays."""
+        # Create 2D test data (10 samples, 5 features)
+        test_data_2d = np.random.rand(10, 5)
+
+        lower_bound, upper_bound = AnalysisNode._compute_ci(test_data_2d, axis=0)
+
+        # Check shapes
+        self.assertEqual(lower_bound.shape, (5,))
+        self.assertEqual(upper_bound.shape, (5,))
+
+        # Check that all lower bounds are less than upper bounds
+        self.assertTrue(np.all(lower_bound <= upper_bound))
+
     def test_compute_output_types(self) -> None:
         analysis_outputs = self.analysis_node.run_analysis()
         self.assertIsInstance(analysis_outputs, AnalysisNodeOutput)
