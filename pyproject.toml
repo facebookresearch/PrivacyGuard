@@ -3,24 +3,24 @@ requires = ["setuptools>=34.4", "wheel", "setuptools_scm"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "privacy_guard"
-description = "PrivacyGuard"
+name = "PrivacyGuard"
+description = "PrivacyGuard platform for Privacy Attacks and Analysis. Perform privacy analyses of ML models using Inference Attacks and Extraction Attacks."
 authors = [{name = "Meta Platforms, Inc."}]
 license = "MIT"
 license-files = ["LICENSE"]
 readme = "README.md"
 requires-python = ">=3.10"
-keywords = ["PrivacyGuard", "Privacy", "Privacy Attack", "Privacy Analysis"]
+keywords = ["PrivacyGuard", "Privacy", "Privacy Attack", "Privacy Analysis", "privacy_guard"]
 classifiers = [
-    "Private :: Do Not Upload", # Required to prevent PyPI uploads
+    "Development Status :: 4 - Beta",
     "Operating System :: POSIX :: Linux",
     "Operating System :: MacOS :: MacOS X",
     "Programming Language :: Python :: 3",
 ]
 dynamic = ["version"]
 
-dependencies = [ # need to double check which of these are required.
-    "jinja2",  # also a Plotly dep
+dependencies = [
+    "jinja2",
     "pandas",
     "scipy",
     "scikit-learn",
