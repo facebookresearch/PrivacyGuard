@@ -284,7 +284,7 @@ class HuggingFacePredictor(BasePredictor):
 
         with torch.no_grad():
             # Get model outputs for the entire batch
-            outputs = (
+            outputs = (  # pyre-fixme[29]: `typing.Union[torch._tensor.Tensor, torch.nn.modules.module.Module]` is not a function.
                 self.model.module  # pyre-ignore
                 if hasattr(self.model, "module")
                 else self.model
