@@ -19,6 +19,8 @@ import unittest
 
 from unittest.mock import MagicMock
 
+import transformers
+from packaging.version import Version
 from privacy_guard.attacks.extraction.generation_attack import GenerationAttack
 
 
@@ -144,6 +146,17 @@ class TestGenerationAttack(unittest.TestCase):
 
         self.assertIn("Missing required columns", str(context.exception))
         bad_input_file.close()
+
+    def test_transformers_version_in_generation_attack(self) -> None:
+        """Verify that transformers version is greater than or equal to 4.55.0"""
+        current_version = transformers.__version__
+        required_version = "4.55.0"
+
+        self.assertGreaterEqual(
+            Version(current_version),
+            Version(required_version),
+            f"Transformers version {current_version} must be greater than or equal to 4.55.0",
+        )
 
     def tearDown(self) -> None:
         """Clean up temporary files."""
