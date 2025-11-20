@@ -36,7 +36,8 @@ dependencies = [
     "torch",
     'tqdm',
     'textdistance',
-    'transformers',
+    'transformers>=4.55.0',
+    'accelerate',
     'later',
 ]
 
