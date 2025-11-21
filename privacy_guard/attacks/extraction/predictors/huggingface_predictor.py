@@ -36,8 +36,23 @@ class HuggingFacePredictor(BasePredictor):
         device: str | None = None,
         model_kwargs: Dict[str, Any] | None = None,
         tokenizer_kwargs: Dict[str, Any] | None = None,
+        include_prompt_in_generation_result: bool = True,
         **kwargs: Any,
     ) -> None:
+        """
+        A predictor class that leverages HuggingFace models for text generation and inference.
+        This class wraps a HuggingFace model and tokenizer, allowing for flexible configuration
+        and usage on different devices (CPU/Cuda GPU). It supports passing custom arguments to both
+        the model and tokenizer, and can optionally include the input prompt in the generation result.
+        Args:
+            model_name: The name or path of the HuggingFace model to load (locally or remotely from Huggingface).
+            device: The device to run the model on (e.g., 'cpu', 'cuda') If None, selects device based on cuda availability
+            model_kwargs: Additional keyword arguments to pass to the model during initialization. Defaults to None.
+            tokenizer_kwargs: Additional keyword arguments to pass to the tokenizer during initialization. Defaults to None.
+            include_prompt_in_generation_result: If True, the generation results will incldue the full prompt.
+                If false, the result will decode only the newly generated tokens and not the input prompt.
+            **kwargs: Additional keyword arguments for the base predictor or other custom settings.
+        """
         self.model_name: str = model_name
         self.device: str = (
             device
@@ -51,6 +66,7 @@ class HuggingFacePredictor(BasePredictor):
         self.tokenizer_kwargs: Dict[str, Any] = tokenizer_kwargs or {}
         self.model: PreTrainedModel
         self.tokenizer: PreTrainedTokenizer
+        self.include_prompt_in_generation_result = include_prompt_in_generation_result
         # Model already loaded on device - now pass the kwargs
         self.model, self.tokenizer = load_model_and_tokenizer(
             model_name,
@@ -73,15 +89,16 @@ class HuggingFacePredictor(BasePredictor):
                 clean_batch.append(item)
         return clean_batch
 
-    def _generate_process_batch(
-        self, batch: List[str], max_new_tokens: int = 512, **generation_kwargs: Any
+    def _generate_decode_logic(
+        self,
+        inputs: Dict[str, Any],
+        max_new_tokens: int = 512,
+        **generation_kwargs: Any,
     ) -> List[str]:
-        """Process a single batch of prompts."""
-        clean_batch = self.preprocess_batch(batch)
-
-        inputs = self.tokenizer(
-            clean_batch, return_tensors="pt", padding=True, truncation=True
-        ).to(self.device)
+        """Calls the correct generate call based on the model type.
+        Supports logic for returning only the generated text, or the full sample including
+        the prompt."""
+        include_prompt_in_generation_result = self.include_prompt_in_generation_result
 
         with torch.no_grad():
             # Handle both regular models and DDP-wrapped models
@@ -94,9 +111,34 @@ class HuggingFacePredictor(BasePredictor):
                     **inputs, max_new_tokens=max_new_tokens, **generation_kwargs
                 )
 
-        batch_results = self.tokenizer.batch_decode(outputs, skip_special_tokens=True)
+        if include_prompt_in_generation_result:
+            batch_results = self.tokenizer.batch_decode(
+                outputs, skip_special_tokens=True
+            )
+        else:
+            trimmed_outputs = []
+            for output, input_val in zip(outputs, inputs["input_ids"]):
+                trimmed_outputs.append(output[len(input_val) :])
+
+            batch_results = self.tokenizer.batch_decode(
+                trimmed_outputs, skip_special_tokens=True
+            )
 
         return batch_results
+
+    def _generate_process_batch(
+        self, batch: List[str], max_new_tokens: int = 512, **generation_kwargs: Any
+    ) -> List[str]:
+        """Process a single batch of prompts."""
+        clean_batch = self.preprocess_batch(batch)
+
+        inputs = self.tokenizer(
+            clean_batch, return_tensors="pt", padding=True, truncation=True
+        ).to(self.device)
+
+        return self._generate_decode_logic(
+            inputs=inputs, max_new_tokens=max_new_tokens, **generation_kwargs
+        )
 
     def generate(self, prompts: List[str], **generation_kwargs: Any) -> List[str]:
         """Generate text continuations for given prompts."""
