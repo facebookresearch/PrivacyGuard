@@ -93,6 +93,43 @@ class TestHuggingFacePredictor(unittest.TestCase):
     @patch(
         "privacy_guard.attacks.extraction.predictors.huggingface_predictor.load_model_and_tokenizer"
     )
+    def test_generate_no_prompt_in_result(
+        self, mock_load_model_and_tokenizer: MagicMock
+    ) -> None:
+        """Test generate functionality."""
+        mock_load_model_and_tokenizer.return_value = (
+            self.mock_model,
+            self.mock_tokenizer,
+        )
+
+        # Mock tokenizer responses
+        mock_inputs = MagicMock()
+        mock_inputs.to.return_value = {
+            "input_ids": torch.tensor([[1, 2, 3]]),
+            "attention_mask": torch.tensor([[1, 1, 1]]),
+        }
+        self.mock_tokenizer.return_value = mock_inputs
+        self.mock_tokenizer.batch_decode.return_value = [
+            "Generated text without prompt"
+        ]
+
+        predictor = HuggingFacePredictor(
+            self.model_name, self.device, include_prompt_in_generation_result=False
+        )
+
+        # Mock the tqdm within the generate method - patch the specific import
+        with patch(
+            "privacy_guard.attacks.extraction.predictors.huggingface_predictor.tqdm"
+        ) as mock_tqdm:
+            mock_tqdm.side_effect = lambda x, **kwargs: x
+            result = predictor.generate(["Test prompt"])
+
+        self.assertEqual(result, ["Generated text without prompt"])
+        self.mock_model.generate.assert_called_once()
+
+    @patch(
+        "privacy_guard.attacks.extraction.predictors.huggingface_predictor.load_model_and_tokenizer"
+    )
     def test_get_logits(self, mock_load_model_and_tokenizer: MagicMock) -> None:
         """Test get_logits functionality."""
         mock_load_model_and_tokenizer.return_value = (
