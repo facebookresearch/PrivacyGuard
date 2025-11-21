@@ -58,7 +58,7 @@ class TestGenerationAttack(unittest.TestCase):
 
         # Verify predictor was called correctly
         self.mock_predictor.generate.assert_called_once_with(
-            prompts=["prompt 1", "prompt 2"], temperature=1, top_k=40
+            prompts=["prompt 1", "prompt 2"], batch_size=1, temperature=1, top_k=40
         )
 
         # Verify result structure
@@ -84,7 +84,7 @@ class TestGenerationAttack(unittest.TestCase):
 
         # Verify predictor was called correctly
         self.mock_predictor.generate.assert_called_once_with(
-            prompts=["prompt 1", "prompt 2"], temperature=1, top_k=40
+            prompts=["prompt 1", "prompt 2"], batch_size=1, temperature=1, top_k=40
         )
 
         # Verify output file was created
@@ -120,7 +120,7 @@ class TestGenerationAttack(unittest.TestCase):
 
         # Verify predictor was called with correct prompts
         self.mock_predictor.generate.assert_called_once_with(
-            prompts=["test prompt 1", "test prompt 2"]
+            prompts=["test prompt 1", "test prompt 2"], batch_size=1
         )
 
         # Verify custom column names
