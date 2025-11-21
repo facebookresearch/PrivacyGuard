@@ -91,7 +91,7 @@ class GenerationAttack(BaseAttack):
         input_column: str = "prompt",
         target_column: str = "target",
         output_column: str = "prediction",
-        batch_size: int = 4,
+        batch_size: int = 1,
         **generation_kwargs: Any,
     ) -> None:
         if output_file is None and output_format is not None:
@@ -133,6 +133,7 @@ class GenerationAttack(BaseAttack):
         logger.info(f"Generating text for {len(prompts)} prompts")
         generations = self.predictor.generate(
             prompts=prompts,
+            batch_size=self.batch_size,
             **self.generation_kwargs,
         )
 
