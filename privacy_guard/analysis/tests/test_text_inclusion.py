@@ -25,6 +25,8 @@ from privacy_guard.analysis.extraction.text_inclusion_analysis_node import (
     _char_level_longest_common_subsequence_helper,
     _char_level_longest_common_substring_helper,
     _char_level_longest_common_substring_helper_bound,
+    _char_level_longest_common_substring_with_matched_text,
+    _clean_text,
     _word_level_longest_common_subsequence_helper,
     TextInclusionAnalysisNode,
     TextInclusionAnalysisNodeOutput,
@@ -383,6 +385,59 @@ class TestAnalysisInput(unittest.TestCase):
         )
 
         self.assertEqual(_char_level_longest_common_substring_helper(s1=s1, s2=s2), 20)
+
+    def test_bounded_longest_common_substring_with_matched_text(self) -> None:
+        s1 = 'Yesterday I woke up and thought " I will go to\nthe park"'
+        s2 = "He said to me that he will go to the gym"
+
+        max_len, max_substring = _char_level_longest_common_substring_with_matched_text(
+            _clean_text(s1), _clean_text(s2)
+        )
+        self.assertEqual(max_substring, " will go to the ")
+        self.assertEqual(len(" will go to the "), max_len)
+
+    def test_format_lcs_result(self) -> None:
+        analysis_outputs = self.analysis_node.run_analysis()
+        self.assertIsInstance(analysis_outputs, TextInclusionAnalysisNodeOutput)
+
+        lcs_result_formatted = analysis_outputs.lcs_result_formatted(
+            display_lcs_match=True
+        )
+
+        result = dict(lcs_result_formatted.iloc[-1])
+
+        self.assertIn("lcs", result.keys())
+        self.assertIn("% target extracted", result.keys())
+        self.assertIn("prompt", result.keys())
+        self.assertIn("output_text", result.keys())
+        self.assertIn("target", result.keys())
+        self.assertIn("lcs_match", result.keys())
+
+        self.assertEqual(result["lcs_match"], "dolorem ipsum")
+
+    def test_format_lcs_result_no_analysis_input(self) -> None:
+        outputs = TextInclusionAnalysisNodeOutput(
+            num_samples=0,
+            exact_match=pd.Series(),
+            inclusion_score=pd.Series(),
+            longest_common_substring=None,
+            longest_common_substring_false_pos=None,
+            decision_targets_lcs=None,
+            decision_targets_lcs_len=None,
+            edit_similarity=None,
+            edit_similarity_score=None,
+            filtered_true_positive_list=None,
+            augmented_output_dataset=pd.DataFrame(),
+            word_level_longest_common_subsequence=None,
+            char_level_longest_common_subsequence=None,
+            analysis_input=None,
+        )
+        with self.assertRaisesRegex(ValueError, "No lcs results to display"):
+            outputs.lcs_result_formatted(display_lcs_match=True)
+
+        outputs.longest_common_substring = pd.Series()
+        with self.assertRaisesRegex(ValueError, "No analysis input"):
+            outputs.lcs_result_formatted(display_lcs_match=True)
 
     def test_word_level_longest_common_susequence_match(self) -> None:
         s1 = (
