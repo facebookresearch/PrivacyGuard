@@ -16,7 +16,7 @@ import string
 from collections import defaultdict
 
 from dataclasses import dataclass
-from typing import Callable, cast, Dict, List, Optional, Tuple
+from typing import Any, Callable, cast, Dict, List, Optional, Tuple
 
 import pandas as pd
 import textdistance
@@ -36,6 +36,8 @@ tqdm.pandas()
 class TextInclusionAnalysisNodeOutput(BaseAnalysisOutput):
     """A dataclass to encapsulate the outputs of TextInclusionAnalysisNode."""
 
+    # TODO separate TextInclusionAnalysisNode into multiple analysis classes.
+
     num_samples: int
     exact_match: pd.Series
     inclusion_score: pd.Series
@@ -49,6 +51,70 @@ class TextInclusionAnalysisNodeOutput(BaseAnalysisOutput):
     augmented_output_dataset: pd.DataFrame
     char_level_longest_common_subsequence: Optional[pd.Series]
     word_level_longest_common_subsequence: Optional[pd.Series]
+
+    analysis_input: TextInclusionAnalysisInput | None = (
+        None  # Include for future reference
+    )
+
+    def format_single_lcs_result(
+        self,
+        lcs_dict: Dict[str, Any],
+        augmented_row: Dict[str, Any],
+        display_lcs_match: bool,
+        analysis_input: TextInclusionAnalysisInput,
+    ) -> Dict[str, Any]:
+        lcs_target = list(lcs_dict.keys())[0]
+
+        prompt = augmented_row[analysis_input.prompt_key]
+        prediction = augmented_row[analysis_input.generation_key]
+
+        target = augmented_row[analysis_input.target_key]
+
+        lcs_result_dict = {
+            "lcs": lcs_dict[lcs_target],
+            "% target extracted": "N/A"
+            if len(lcs_target) == 0
+            else 100 * lcs_dict[lcs_target] / len(lcs_target),
+            analysis_input.prompt_key: prompt,
+            analysis_input.generation_key: prediction,
+            analysis_input.target_key: target,
+        }
+
+        if display_lcs_match:
+            _, matched_text = _char_level_longest_common_substring_with_matched_text(
+                _clean_text(text=target), _clean_text(text=prediction)
+            )
+            lcs_result_dict["lcs_match"] = matched_text
+        return lcs_result_dict
+
+    def lcs_result_formatted(self, display_lcs_match: bool) -> pd.DataFrame:
+        """Returns a interpretble dataframe of the lcs results.
+        display_lcs_match: whether to display the matched text in the lcs result. Recomputes
+            on the fly
+        """
+        if self.longest_common_substring is None:
+            raise ValueError("No lcs results to display.")
+        if self.analysis_input is None:
+            raise ValueError("No analysis input, can't id keys for formatting")
+
+        longest_common_substring_list = list(self.longest_common_substring)
+
+        displays: List[Dict[str, Any]] = []
+
+        for lcs_dict, augmented_row in zip(
+            longest_common_substring_list,
+            self.augmented_output_dataset.T.to_dict().values(),
+        ):
+            displays.append(
+                self.format_single_lcs_result(
+                    lcs_dict=lcs_dict,
+                    augmented_row=augmented_row,
+                    display_lcs_match=display_lcs_match,
+                    analysis_input=self.analysis_input,  # pyre-ignore
+                )
+            )
+
+        return pd.DataFrame(displays)
 
 
 def _clean_text(text: str) -> str:
@@ -148,7 +214,9 @@ def _char_level_longest_common_substring_helper_bound(
     return 0
 
 
-def _char_level_longest_common_substring_helper(s1: str, s2: str) -> int:
+def _char_level_longest_common_substring_with_matched_text(
+    s1: str, s2: str
+) -> Tuple[int, str]:
     """
     Implementation of the longest common substring at character level.
     Different from longest common subsequence (commonly known as LCS), longest common substring is the longest common CONSECUTIVE subsequence. Please use with caution.
@@ -157,6 +225,7 @@ def _char_level_longest_common_substring_helper(s1: str, s2: str) -> int:
     # Initialize variables to store the longest common substring and its length
 
     max_length = 0
+    max_substring = ""
     # Iterate over the characters in the first string
     for i in range(len(s1)):
         # Iterate over the possible lengths of substrings
@@ -168,6 +237,13 @@ def _char_level_longest_common_substring_helper(s1: str, s2: str) -> int:
             if substring in s2 and len(substring) > max_length:
                 # Update the longest substring and its length
                 max_length = len(substring)
+                max_substring = substring
+
+    return max_length, max_substring
+
+
+def _char_level_longest_common_substring_helper(s1: str, s2: str) -> int:
+    max_length, _ = _char_level_longest_common_substring_with_matched_text(s1, s2)
 
     return max_length
 
@@ -423,6 +499,7 @@ class TextInclusionAnalysisNode(BaseAnalysisNode):
             augmented_output_dataset=generation_df,
             word_level_longest_common_subsequence=None,
             char_level_longest_common_subsequence=None,
+            analysis_input=analysis_input,
         )
 
         if not analysis_input.disable_longest_common_substring:
