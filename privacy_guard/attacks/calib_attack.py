@@ -33,6 +33,7 @@ class CalibScoreType(str, Enum):
     ENTROPY = "entropy"
     CONFIDENCE = "confidence"
     SCALED_LOGITS = "scaled_logits"
+    LOGITS = "logits"
 
 
 class CalibAttack(BaseAttack):
@@ -132,6 +133,16 @@ class CalibAttack(BaseAttack):
         ) * (2 * df["label"] - 1)
 
     @classmethod
+    def compute_logits(cls, df: pd.DataFrame) -> pd.DataFrame:
+        """
+        Compute (negative) logits.
+        """
+
+        return -(
+            np.log(1e-30 + df["predictions"]) - np.log(1e-30 + 1 - df["predictions"])
+        )
+
+    @classmethod
     def compute_score(cls, df: pd.DataFrame, score_type: str) -> pd.DataFrame:
         """
         Compute scores as DataFrame
@@ -146,6 +157,8 @@ class CalibAttack(BaseAttack):
                 score = cls.compute_confidence(df)
             case "scaled_logits":
                 score = cls.compute_scaled_logits(df)
+            case "logits":
+                score = cls.compute_logits(df)
             case _:
                 raise ValueError(f"{score_type} is not a valid score type.")
 

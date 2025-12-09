@@ -76,10 +76,40 @@ class TestCalibAttack(unittest.TestCase):
         _ = CalibAttack.compute_score(
             df=self.df_hold_out_train, score_type="scaled_logits"
         )
+        _ = CalibAttack.compute_score(df=self.df_hold_out_train, score_type="logits")
         with self.assertRaises(ValueError):
             _ = CalibAttack.compute_score(
                 df=self.df_hold_out_train, score_type="no_score"
             )
+
+    def test_logits_values(self) -> None:
+        # Execute: compute logits score for the test data
+        result = CalibAttack.compute_score(
+            df=self.df_hold_out_train, score_type="logits"
+        )
+
+        # Assert: verify the logits values are correct
+        # logits = -(log(predictions + 1e-30) - log(1 - predictions + 1e-30))
+        # This is similar to scaled_logits but WITHOUT the (2*label - 1) factor
+        assert_almost_equal(
+            result,
+            [1.26651961, 2.09382253, 1.10638714, 4.9806934, 5.47093052],
+            decimal=7,
+        )
+
+    def test_logits_vs_scaled_logits(self) -> None:
+        # Execute: compute both logits and scaled_logits
+        logits = CalibAttack.compute_score(
+            df=self.df_hold_out_train, score_type="logits"
+        )
+
+        copied_df = self.df_hold_out_train.copy()
+        copied_df["label"] = 1
+        scaled_logits = CalibAttack.compute_score(
+            df=copied_df, score_type="scaled_logits"
+        )
+
+        assert_almost_equal(logits.values, scaled_logits.values, decimal=7)
 
     def test_scaled_logits_values(self) -> None:
         assert_almost_equal(
