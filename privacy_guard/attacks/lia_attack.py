@@ -192,9 +192,9 @@ class LIAAttack(BaseAttack):
         else:
             df_attack = self.attack_input["df_aggregated"]
 
-        y0 = df_attack["label"].values
-        predictions = df_attack["predictions"].values
-        predictions_y1_generation = self.get_y1_predictions(df_attack)
+        y0 = np.asarray(df_attack["label"].values)
+        predictions = np.asarray(df_attack["predictions"].values)
+        predictions_y1_generation = np.asarray(self.get_y1_predictions(df_attack))
         true_bits_all_reps = np.random.randint(
             2, size=(self.num_resampling_times, len(df_attack))
         )
