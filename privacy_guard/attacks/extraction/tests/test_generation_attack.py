@@ -148,14 +148,14 @@ class TestGenerationAttack(unittest.TestCase):
         bad_input_file.close()
 
     def test_transformers_version_in_generation_attack(self) -> None:
-        """Verify that transformers version is greater than or equal to 4.55.0"""
+        """Verify that transformers version is greater than or equal to 4.57.1"""
         current_version = transformers.__version__
-        required_version = "4.55.0"
+        required_version = "4.57.1"
 
         self.assertGreaterEqual(
             Version(current_version),
             Version(required_version),
-            f"Transformers version {current_version} must be greater than or equal to 4.55.0",
+            f"Transformers version {current_version} must be greater than or equal to 4.57.1",
         )
 
     def tearDown(self) -> None:
