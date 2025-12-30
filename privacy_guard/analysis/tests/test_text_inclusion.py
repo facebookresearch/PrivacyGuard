@@ -262,7 +262,7 @@ class TestAnalysisInput(unittest.TestCase):
             results["char_level_longest_common_subsequence"],
             results["word_level_longest_common_subsequence"],
         ):
-            self.assertGreaterEqual(char_lcs, word_lcs)
+            self.assertGreaterEqual(char_lcs, word_lcs[0])
 
     def test_text_inclusion_augmented_output(self) -> None:
         analysis_input = TextInclusionAnalysisInput(
@@ -463,16 +463,26 @@ class TestAnalysisInput(unittest.TestCase):
             + ("t" * 130)
         )
 
-        self.assertEqual(_word_level_longest_common_subsequence_helper(s1=s1, s2=s2), 2)
-        self.assertEqual(_word_level_longest_common_subsequence_helper(s1=s1, s2=s1), 5)
+        self.assertEqual(
+            _word_level_longest_common_subsequence_helper(s1=s1, s2=s2)[0], 2
+        )
+        self.assertEqual(
+            _word_level_longest_common_subsequence_helper(s1=s1, s2=s1)[0], 5
+        )
 
         s1 = "a b a"
         s2 = "c a b a d"
         s3 = "a d b a"
 
-        self.assertEqual(_word_level_longest_common_subsequence_helper(s1=s1, s2=s2), 3)
-        self.assertEqual(_word_level_longest_common_subsequence_helper(s1=s2, s2=s3), 3)
-        self.assertEqual(_word_level_longest_common_subsequence_helper(s1=s1, s2=s3), 3)
+        self.assertEqual(
+            _word_level_longest_common_subsequence_helper(s1=s1, s2=s2), (3, "a b a")
+        )
+        self.assertEqual(
+            _word_level_longest_common_subsequence_helper(s1=s2, s2=s3), (3, "a b a")
+        )
+        self.assertEqual(
+            _word_level_longest_common_subsequence_helper(s1=s1, s2=s3), (3, "a b a")
+        )
 
     def test_char_level_longest_common_susequence_match(self) -> None:
         s1 = ("w" * 5) + ("t" * 16) + ("b" * 5) + ("t" * 15)
@@ -517,10 +527,14 @@ class TestAnalysisInput(unittest.TestCase):
         s2 = ("x " * 50) + ("t " * 160) + ("c " * 150) + ("t " * 200) + "end2"
 
         self.assertEqual(
-            _word_level_longest_common_subsequence_helper(s1=s1, s2=s2, autojunk=False),
+            _word_level_longest_common_subsequence_helper(s1=s1, s2=s2, autojunk=False)[
+                0
+            ],
             260,
         )
         self.assertEqual(
-            _word_level_longest_common_subsequence_helper(s1=s1, s2=s2, autojunk=True),
+            _word_level_longest_common_subsequence_helper(s1=s1, s2=s2, autojunk=True)[
+                0
+            ],
             0,
         )
