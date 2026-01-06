@@ -56,6 +56,65 @@ class TextInclusionAnalysisNodeOutput(BaseAnalysisOutput):
         None  # Include for future reference
     )
 
+    def format_single_word_level_lcs_result(
+        self,
+        num_matched_words: int,
+        matched_string: str,
+        augmented_row: Dict[str, Any],
+        analysis_input: TextInclusionAnalysisInput,
+    ) -> Dict[str, Any]:
+        prompt = augmented_row[analysis_input.prompt_key]
+        prediction = augmented_row[analysis_input.generation_key]
+
+        target = augmented_row[analysis_input.target_key]
+        # The method here should set remove_consecutive_whitespace based on analysis input
+        clean_target_len = len(_clean_text_remove_consecutive_whitespace(text=target))
+
+        matched_string_char_length = len(matched_string)
+        word_level_lcs_result_dict = {
+            "Count of matched words": num_matched_words,
+            "Length of matched words": matched_string_char_length,
+            "Matched consecutive sequence": matched_string,
+            "% target extracted": "N/A"
+            if clean_target_len == 0
+            else 100 * matched_string_char_length / clean_target_len,
+            analysis_input.prompt_key: prompt,
+            analysis_input.target_key: target,
+            analysis_input.generation_key: prediction,
+        }
+
+        return word_level_lcs_result_dict
+
+    def word_level_lcs_result_formatted(self) -> pd.DataFrame:
+        """Returns a interpretble dataframe of the word level results."""
+        if self.word_level_longest_common_subsequence is None:
+            raise ValueError("No lcs results to display.")
+        if self.analysis_input is None:
+            raise ValueError("No analysis input, can't id keys for formatting")
+
+        word_level_longest_common_subsequence_list = list(
+            self.word_level_longest_common_subsequence
+        )
+
+        displays: List[Dict[str, Any]] = []
+
+        for word_level_tuple, augmented_row in zip(
+            word_level_longest_common_subsequence_list,
+            self.augmented_output_dataset.T.to_dict().values(),
+        ):
+            num_matched_words = word_level_tuple[0]
+            matched_string = word_level_tuple[1]
+            displays.append(
+                self.format_single_word_level_lcs_result(
+                    num_matched_words=num_matched_words,
+                    matched_string=matched_string,
+                    augmented_row=augmented_row,
+                    analysis_input=self.analysis_input,  # pyre-ignore
+                )
+            )
+
+        return pd.DataFrame(displays)
+
     def format_single_lcs_result(
         self,
         lcs_dict: Dict[str, Any],
@@ -141,9 +200,23 @@ def _clean_text(text: str) -> str:
     return cleaned_text
 
 
+def _clean_text_remove_consecutive_whitespace(text: str) -> str:
+    """Normalizes text.
+
+    - Lowercases
+    - Removes punctuation
+    - Turn newlines and tabs into spaces
+    - Strips leading and trailing whitespace
+    - Removes consecutive whitespace
+    """
+    cleaned_text = _clean_text(text=text)
+    cleaned_text = " ".join(cleaned_text.split(" "))
+    return cleaned_text
+
+
 def _word_level_longest_common_subsequence_helper(
     s1: str, s2: str, autojunk: bool = True
-) -> int:
+) -> Tuple[int, str]:
     """
     Implementation of the longest common subsequence at word level.
 
@@ -160,10 +233,13 @@ def _word_level_longest_common_subsequence_helper(
 
     # Initialize the length of matched words count
     matched_words_count = 0
+    matched_words = []
     for block in matching_blocks:
         if block.size > 0:
             matched_words_count += block.size
-    return matched_words_count
+            matched_words.extend(s1_list[block.a : block.a + block.size])
+    reconstructed_match = " ".join(matched_words)
+    return (matched_words_count, reconstructed_match)
 
 
 def _char_level_longest_common_subsequence_helper(
@@ -299,19 +375,25 @@ class TextInclusionAnalysisNode(BaseAnalysisNode):
             self.target_set_key
         ].apply(lambda x: len(x))
 
+        self.clean_text_method = (
+            _clean_text
+            if not analysis_input.remove_consecutive_whitespace
+            else _clean_text_remove_consecutive_whitespace
+        )
+
         super().__init__(analysis_input=analysis_input)
 
     def _compute_word_level_longest_common_subsequence_helper(
         self, row: pd.Series, s1_column: str | None = None, s2_column: str | None = None
-    ) -> int:
+    ) -> Tuple[int, str]:
         """Compute char level longest common subsequence between target and generation text.
         Text are cleaned first.
 
         Returns:
             int: Number of shared words between the two strings.
         """
-        s1 = _clean_text(row[s1_column or self.target_key])
-        s2 = _clean_text(row[s2_column or self.generation_key])
+        s1 = self.clean_text_method(row[s1_column or self.target_key])
+        s2 = self.clean_text_method(row[s2_column or self.generation_key])
         return _word_level_longest_common_subsequence_helper(s1, s2)
 
     def _compute_char_level_longest_common_subsequence_helper(
@@ -323,8 +405,8 @@ class TextInclusionAnalysisNode(BaseAnalysisNode):
         Returns:
             int: Number of shared words between the two strings.
         """
-        s1 = _clean_text(row[s1_column or self.target_key])
-        s2 = _clean_text(row[s2_column or self.generation_key])
+        s1 = self.clean_text_method(row[s1_column or self.target_key])
+        s2 = self.clean_text_method(row[s2_column or self.generation_key])
         return _char_level_longest_common_subsequence_helper(s1, s2)
 
     def _compute_edit_similarity(
@@ -339,8 +421,8 @@ class TextInclusionAnalysisNode(BaseAnalysisNode):
         Returns:
             int: Edit similarity between the two strings.
         """
-        s1 = _clean_text(row[s1_column or self.target_key])
-        s2 = _clean_text(row[s2_column or self.generation_key])
+        s1 = self.clean_text_method(row[s1_column or self.target_key])
+        s2 = self.clean_text_method(row[s2_column or self.generation_key])
         levenshtein = textdistance.levenshtein.similarity(s1, s2)
         return levenshtein
 
@@ -366,8 +448,8 @@ class TextInclusionAnalysisNode(BaseAnalysisNode):
         Returns:
             bool: True if the target is included in the output_text, False otherwise.
         """
-        s1 = _clean_text(row[self.target_key])
-        s2 = _clean_text(row[self.generation_key])
+        s1 = self.clean_text_method(row[self.target_key])
+        s2 = self.clean_text_method(row[self.generation_key])
         return s1 in s2
 
     def get_compute_longest_common_substring_map(
@@ -418,11 +500,11 @@ class TextInclusionAnalysisNode(BaseAnalysisNode):
 
             target_set = row[self.target_set_key]
 
-            comparison_text = _clean_text(row[comparison_key])
-            fp_text = _clean_text(row[false_positive_key])
+            comparison_text = self.clean_text_method(row[comparison_key])
+            fp_text = self.clean_text_method(row[false_positive_key])
 
             for target in target_set:
-                clean_target = _clean_text(target)
+                clean_target = self.clean_text_method(target)
 
                 if lcs_bound_config is not None:
                     lcs = _char_level_longest_common_substring_helper_bound(
