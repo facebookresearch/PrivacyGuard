@@ -1,3 +1,16 @@
+# Copyright (c) Meta Platforms, Inc. and affiliates.
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+# http://www.apache.org/licenses/LICENSE-2.0
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# pyre-strict
+
 import unittest
 
 import pandas as pd
@@ -74,5 +87,11 @@ class TestEditSimilarityNode(unittest.TestCase):
         self.assertEqual(output.augmented_output_dataset.equals(generation_df), True)
 
     def test_text_inclusion_edit_similarity(self) -> None:
-        analysis_node = EditSimilarityNode(analysis_input=self.analysis_input)
-        analysis_node.run_analysis()
+        analysis_input = TextInclusionAnalysisInput(
+            generation_df=pd.DataFrame(self.data)
+        )
+        analysis_node = EditSimilarityNode(analysis_input=analysis_input)
+        results = analysis_node.compute_outputs()
+        self.assertIn("edit_similarity", results)
+        self.assertIn("edit_similarity_score", results)
+        self.assertEqual(results["edit_similarity"].tolist(), [13, 3, 22, 16, 8, 16])
