@@ -16,7 +16,6 @@ import warnings
 
 import pandas as pd
 import torch
-
 from privacy_guard.analysis.extraction.probabilistic_memorization_analysis_from_logits_input import (
     ProbabilisticMemorizationAnalysisFromLogitsInput,
 )

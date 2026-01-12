@@ -14,20 +14,16 @@
 import unittest
 
 import pandas as pd
-
 from privacy_guard.analysis.extraction.edit_similarity_node import (
     EditSimilarityNode,
     EditSimilarityNodeOutput,
 )
-
 from privacy_guard.analysis.extraction.text_inclusion_analysis_input import (
     TextInclusionAnalysisInput,
 )
-
 from privacy_guard.analysis.extraction.text_inclusion_analysis_node import (
     TextInclusionAnalysisNode,
 )
-
 from tqdm import tqdm
 
 tqdm.pandas()

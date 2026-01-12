@@ -14,7 +14,6 @@ import tempfile
 import unittest
 
 import pandas as pd
-
 from privacy_guard.analysis.scripts.text_inclusion_metrics import (
     dump_augmented_df,
     longest_common_substring_decision,

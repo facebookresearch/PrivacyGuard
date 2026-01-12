@@ -15,16 +15,13 @@
 # pyre-strict
 
 import logging
-
 from typing import Any, Dict, List, Literal, Optional
 
 import pandas as pd
-
 from privacy_guard.analysis.extraction.probabilistic_memorization_analysis_from_logits_input import (
     ProbabilisticMemorizationAnalysisFromLogitsInput,
 )
 from privacy_guard.attacks.base_attack import BaseAttack
-
 from privacy_guard.attacks.extraction.predictors.base_predictor import BasePredictor
 from privacy_guard.attacks.extraction.utils.data_utils import load_data, save_results
 

@@ -22,7 +22,6 @@ from privacy_guard.analysis.mia.aggregate_analysis_input import (
     AggregateAnalysisInput,
     AggregationType,
 )
-
 from privacy_guard.attacks.lira_attack import LiraAttack
 
 

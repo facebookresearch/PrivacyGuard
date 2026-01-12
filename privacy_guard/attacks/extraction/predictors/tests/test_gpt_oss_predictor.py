@@ -41,13 +41,16 @@ class TestGPTOSSPredictor(unittest.TestCase):
         self.mock_tokenizer.pad_token_id = 0
         self.mock_tokenizer.batch_decode.return_value = ["Generated text"]
 
-        with patch.object(
-            GPTOSSPredictor, "accelerate_available_workaround", return_value=True
-        ), patch(
-            "privacy_guard.attacks.extraction.predictors.huggingface_predictor.load_model_and_tokenizer",
-            return_value=(
-                self.mock_model,
-                self.mock_tokenizer,
+        with (
+            patch.object(
+                GPTOSSPredictor, "accelerate_available_workaround", return_value=True
+            ),
+            patch(
+                "privacy_guard.attacks.extraction.predictors.huggingface_predictor.load_model_and_tokenizer",
+                return_value=(
+                    self.mock_model,
+                    self.mock_tokenizer,
+                ),
             ),
         ):
             self.predictor = GPTOSSPredictor(self.model_name, self.device)

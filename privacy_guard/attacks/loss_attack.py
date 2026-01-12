@@ -19,7 +19,6 @@ from typing import Callable
 import pandas as pd
 import torch
 import torch.nn as nn
-
 from privacy_guard.analysis.base_analysis_input import BaseAnalysisInput
 from privacy_guard.attacks.base_attack import BaseAttack
 from torch.utils.data import DataLoader

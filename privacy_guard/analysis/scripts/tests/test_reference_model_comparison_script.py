@@ -14,7 +14,6 @@ import tempfile
 import unittest
 
 import pandas as pd
-
 from privacy_guard.analysis.scripts.reference_model_comparison import (
     dump_augmented_df,
     run_comparison_analysis,

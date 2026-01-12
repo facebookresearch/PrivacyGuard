@@ -13,7 +13,6 @@
 
 import numpy as np
 import pytest
-
 from privacy_guard.analysis.base_analysis_node import compute_and_merge_outputs
 from privacy_guard.analysis.mia.aggregate_analysis_input import (
     AggregateAnalysisInput,
@@ -25,7 +24,6 @@ from privacy_guard.analysis.mia.score_analysis_node import (
     ScoreAnalysisNode,
     ScoreAnalysisNodeOutput,
 )
-
 from privacy_guard.analysis.tests.base_test_analysis_node import BaseTestAnalysisNode
 
 

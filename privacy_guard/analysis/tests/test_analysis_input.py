@@ -12,12 +12,10 @@
 # pyre-strict
 
 import pandas as pd
-
 from privacy_guard.analysis.mia.aggregate_analysis_input import (
     AggregateAnalysisInput,
     AggregationType,
 )
-
 from privacy_guard.analysis.tests.base_test_analysis_node import BaseTestAnalysisNode
 from scipy.stats import gmean
 

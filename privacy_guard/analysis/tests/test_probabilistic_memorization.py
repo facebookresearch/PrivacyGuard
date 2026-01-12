@@ -15,7 +15,6 @@ import math
 import unittest
 
 import pandas as pd
-
 from privacy_guard.analysis.extraction.probabilistic_memorization_analysis_input import (
     ProbabilisticMemorizationAnalysisInput,
 )

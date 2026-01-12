@@ -17,7 +17,6 @@ from typing import Optional
 
 import numpy as np
 import pandas as pd
-
 from privacy_guard.analysis.mia.aggregate_analysis_input import (
     AggregateAnalysisInput,
     AggregationType,

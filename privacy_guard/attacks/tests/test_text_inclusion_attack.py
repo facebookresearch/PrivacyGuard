@@ -16,9 +16,7 @@
 
 import os
 import tempfile
-
 from typing import Callable
-
 from unittest.mock import Mock, patch
 
 import pandas as pd
@@ -26,7 +24,6 @@ from later.unittest import TestCase
 from privacy_guard.analysis.extraction.text_inclusion_analysis_input import (
     TextInclusionAnalysisInput,
 )
-
 from privacy_guard.attacks.text_inclusion_attack import (
     TextInclusionAttack,
     TextInclusionAttackBatch,

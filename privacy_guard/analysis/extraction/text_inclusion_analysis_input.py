@@ -12,7 +12,6 @@
 # pyre-strict
 import logging
 from dataclasses import dataclass
-
 from typing import Dict
 
 import pandas as pd
@@ -53,15 +52,15 @@ class TextInclusionAnalysisInput(BaseAnalysisInput):
         disable_char_level_longest_common_subsequence: bool = True,
     ) -> None:
         columns = generation_df.columns.tolist()
-        assert (
-            prompt_key in columns
-        ), f"Prompt key '{prompt_key}' not found in dataframe columns {columns}"
-        assert (
-            target_key in columns
-        ), f"Target key '{target_key}' not found in dataframe columns {columns}"
-        assert (
-            generation_key in columns
-        ), f"Generation key '{generation_key}' not found in dataframe columns {columns}"
+        assert prompt_key in columns, (
+            f"Prompt key '{prompt_key}' not found in dataframe columns {columns}"
+        )
+        assert target_key in columns, (
+            f"Target key '{target_key}' not found in dataframe columns {columns}"
+        )
+        assert generation_key in columns, (
+            f"Generation key '{generation_key}' not found in dataframe columns {columns}"
+        )
 
         self.prompt_key = prompt_key
         self.target_key = target_key

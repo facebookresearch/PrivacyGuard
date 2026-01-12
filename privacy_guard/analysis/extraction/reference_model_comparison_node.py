@@ -19,7 +19,6 @@ from privacy_guard.analysis.base_analysis_output import BaseAnalysisOutput
 from privacy_guard.analysis.extraction.reference_model_comparison_input import (
     ReferenceModelComparisonInput,
 )
-
 from tqdm import tqdm
 
 tqdm.pandas()

@@ -20,7 +20,6 @@ from unittest.mock import MagicMock
 import pandas as pd
 import torch
 import torch.nn as nn
-
 from privacy_guard.attacks.loss_attack import LossAttack
 from torch.utils.data import DataLoader, TensorDataset
 

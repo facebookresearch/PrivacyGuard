@@ -15,11 +15,9 @@
 # pyre-strict
 
 import logging
-
 from typing import Any, Dict, List, Literal, Optional
 
 import pandas as pd
-
 from privacy_guard.analysis.extraction.probabilistic_memorization_analysis_input import (
     ProbabilisticMemorizationAnalysisInput,
 )

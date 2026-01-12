@@ -20,7 +20,6 @@ from privacy_guard.analysis.base_analysis_output import BaseAnalysisOutput
 from privacy_guard.analysis.extraction.probabilistic_memorization_analysis_input import (
     ProbabilisticMemorizationAnalysisInput,
 )
-
 from tqdm import tqdm
 
 tqdm.pandas()

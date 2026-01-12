@@ -14,7 +14,6 @@
 import unittest
 
 import pandas as pd
-
 from privacy_guard.analysis.extraction.reference_model_comparison_input import (
     ReferenceModelComparisonInput,
 )

@@ -12,9 +12,7 @@
 # pyre-strict
 import difflib
 import string
-
 from collections import defaultdict
-
 from dataclasses import dataclass
 from typing import Any, Callable, cast, Dict, List, Optional, Tuple
 
@@ -26,7 +24,6 @@ from privacy_guard.analysis.extraction.text_inclusion_analysis_input import (
     LCSBoundConfig,
     TextInclusionAnalysisInput,
 )
-
 from tqdm import tqdm
 
 tqdm.pandas()

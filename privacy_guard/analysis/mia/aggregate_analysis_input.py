@@ -12,7 +12,6 @@
 # pyre-strict
 import logging
 from enum import Enum
-
 from typing import Set
 
 import pandas as pd

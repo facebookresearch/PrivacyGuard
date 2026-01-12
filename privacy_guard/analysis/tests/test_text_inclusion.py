@@ -12,12 +12,10 @@
 # pyre-strict
 
 import unittest
-
 from typing import Dict, List
 
 import pandas as pd
 from pandas.testing import assert_series_equal
-
 from privacy_guard.analysis.extraction.text_inclusion_analysis_input import (
     TextInclusionAnalysisInput,
 )

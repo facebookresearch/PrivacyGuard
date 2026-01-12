@@ -20,7 +20,6 @@ import numpy as np
 import pandas as pd
 from privacy_guard.analysis.lia.lia_analysis_input import LIAAnalysisInput
 from privacy_guard.analysis.lia.lia_analysis_node import LIAAnalysisNode
-
 from privacy_guard.analysis.mia.aggregate_analysis_input import AggregationType
 from privacy_guard.attacks.lia_attack import LIAAttack, LIAAttackInput
 

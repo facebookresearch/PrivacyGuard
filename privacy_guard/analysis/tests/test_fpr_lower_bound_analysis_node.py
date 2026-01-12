@@ -12,7 +12,6 @@
 # pyre-strict
 
 import numpy as np
-
 from privacy_guard.analysis.mia.aggregate_analysis_input import (
     AggregateAnalysisInput,
     AggregationType,
@@ -21,7 +20,6 @@ from privacy_guard.analysis.mia.fpr_lower_bound_analysis_node import (
     FPRLowerBoundAnalysisNode,
     FPRLowerBoundAnalysisNodeOutput,
 )
-
 from privacy_guard.analysis.tests.base_test_analysis_node import BaseTestAnalysisNode
 
 

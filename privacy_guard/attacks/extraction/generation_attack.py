@@ -15,11 +15,9 @@
 # pyre-strict
 
 import logging
-
 from typing import Any, Dict, Literal
 
 import pandas as pd
-
 from privacy_guard.analysis.extraction.text_inclusion_analysis_input import (
     LCSBoundConfig,
     TextInclusionAnalysisInput,

@@ -23,9 +23,7 @@ This module provides functions for processing texts through language models.
 from typing import Any, Dict, List, Literal, Optional
 
 import pandas as pd
-
 import torch
-
 from tqdm import tqdm
 from transformers import PreTrainedModel, PreTrainedTokenizer
 

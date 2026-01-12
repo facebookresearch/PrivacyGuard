@@ -16,7 +16,6 @@
 import os
 import tempfile
 import unittest
-
 from unittest.mock import MagicMock
 
 import transformers

@@ -20,7 +20,6 @@ import torch
 from numpy.typing import NDArray
 from privacy_guard.analysis.base_analysis_output import BaseAnalysisOutput
 from privacy_guard.analysis.mia.analysis_node import AnalysisNode
-
 from privacy_guard.analysis.mia.mia_results import MIAResults
 
 # pyre-ignore:Undefined import [21]: Could not find a name `bootstrap` defined in module `scipy.stats`.

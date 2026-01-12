@@ -21,7 +21,6 @@ GPT OSS predictor implementation for openai extraction attacks.
 from typing import Any, Dict, List
 
 import transformers.utils.import_utils
-
 from privacy_guard.attacks.extraction.predictors.huggingface_predictor import (
     HuggingFacePredictor,
 )
