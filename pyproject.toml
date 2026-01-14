@@ -39,6 +39,8 @@ dependencies = [
     'transformers>=4.57.1',
     'accelerate',
     'later',
+    'torchvision',
+    'matplotlib',
 ]
 
 [project.optional-dependencies]
@@ -52,7 +54,6 @@ dev = [
     "lxml",
     "mdformat-myst",
 ]
-
 
 notebook = [
 
