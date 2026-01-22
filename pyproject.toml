@@ -21,7 +21,7 @@ dynamic = ["version"]
 
 dependencies = [
     "jinja2",
-    "pandas",
+    "pandas<3.0.0",
     "scipy",
     "scikit-learn",
     "ipywidgets",
