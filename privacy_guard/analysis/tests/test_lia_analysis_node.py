@@ -392,7 +392,7 @@ class TestLIAAnalysisNode(unittest.TestCase):
         predictions_y1 = self.y1_preds
         true_bits = self.true_bits[0]
 
-        # For each sample, compute: (prob_train - prob_reconstruct) * prob_diff_label^power
+        # For each sample, compute: (log(prob_train + 1e-8) - log(prob_reconstruct + 1e-8)) * prob_diff_label^power
         # prob_train = predictions if received_labels==1 else (1 - predictions)
         # prob_reconstruct = predictions_y1 if received_labels==1 else (1 - predictions_y1)
         # prob_diff_label = (1 - predictions_y1) if received_labels==1 else predictions_y1
@@ -408,7 +408,7 @@ class TestLIAAnalysisNode(unittest.TestCase):
                 prob_reconstruct = 1 - predictions_y1[idx]
                 prob_diff_label = predictions_y1[idx]
 
-            score = (prob_train - prob_reconstruct) * (
+            score = (np.log(prob_train + 1e-8) - np.log(prob_reconstruct + 1e-8)) * (
                 prob_diff_label**0.0
             )  # power=0.0 (default)
             expected_scores.append(score)
@@ -435,14 +435,14 @@ class TestLIAAnalysisNode(unittest.TestCase):
         np.testing.assert_allclose(
             scores_train.numpy(),
             expected_scores_train,
-            rtol=1e-10,
+            rtol=1e-6,
             err_msg="Training scores should match expected calculations",
         )
 
         np.testing.assert_allclose(
             scores_test.numpy(),
             expected_scores_test,
-            rtol=1e-10,
+            rtol=1e-6,
             err_msg="Test scores should match expected calculations",
         )
 

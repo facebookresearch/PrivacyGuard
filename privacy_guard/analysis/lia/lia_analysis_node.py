@@ -107,7 +107,9 @@ class LIAAnalysisNode(AnalysisNode):
         prob_reconstruct = np.where(received_labels == 1, y1_probs, 1 - y1_probs)
         prob_diff_label = np.where(received_labels == 1, 1 - y1_probs, y1_probs)
 
-        scores = (prob_train - prob_reconstruct) * prob_diff_label**self._power
+        scores = (
+            np.log(prob_train + 1e-8) - np.log(prob_reconstruct + 1e-8)
+        ) * prob_diff_label**self._power
 
         scores_train = torch.tensor(scores[true_bits == 0])
         scores_test = torch.tensor(scores[true_bits == 1])
