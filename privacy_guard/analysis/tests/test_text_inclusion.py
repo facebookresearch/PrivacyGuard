@@ -262,7 +262,7 @@ class TestAnalysisInput(unittest.TestCase):
             results["char_level_longest_common_subsequence"],
             results["word_level_longest_common_subsequence"],
         ):
-            self.assertGreaterEqual(char_lcs, word_lcs)
+            self.assertGreaterEqual(char_lcs, word_lcs[0])
 
     def test_text_inclusion_augmented_output(self) -> None:
         analysis_input = TextInclusionAnalysisInput(
@@ -463,16 +463,26 @@ class TestAnalysisInput(unittest.TestCase):
             + ("t" * 130)
         )
 
-        self.assertEqual(_word_level_longest_common_subsequence_helper(s1=s1, s2=s2), 2)
-        self.assertEqual(_word_level_longest_common_subsequence_helper(s1=s1, s2=s1), 5)
+        self.assertEqual(
+            _word_level_longest_common_subsequence_helper(s1=s1, s2=s2)[0], 2
+        )
+        self.assertEqual(
+            _word_level_longest_common_subsequence_helper(s1=s1, s2=s1)[0], 5
+        )
 
         s1 = "a b a"
         s2 = "c a b a d"
         s3 = "a d b a"
 
-        self.assertEqual(_word_level_longest_common_subsequence_helper(s1=s1, s2=s2), 3)
-        self.assertEqual(_word_level_longest_common_subsequence_helper(s1=s2, s2=s3), 3)
-        self.assertEqual(_word_level_longest_common_subsequence_helper(s1=s1, s2=s3), 3)
+        self.assertEqual(
+            _word_level_longest_common_subsequence_helper(s1=s1, s2=s2), (3, "a b a")
+        )
+        self.assertEqual(
+            _word_level_longest_common_subsequence_helper(s1=s2, s2=s3), (3, "a b a")
+        )
+        self.assertEqual(
+            _word_level_longest_common_subsequence_helper(s1=s1, s2=s3), (3, "a b a")
+        )
 
     def test_char_level_longest_common_susequence_match(self) -> None:
         s1 = ("w" * 5) + ("t" * 16) + ("b" * 5) + ("t" * 15)
@@ -517,11 +527,15 @@ class TestAnalysisInput(unittest.TestCase):
         s2 = ("x " * 50) + ("t " * 160) + ("c " * 150) + ("t " * 200) + "end2"
 
         self.assertEqual(
-            _word_level_longest_common_subsequence_helper(s1=s1, s2=s2, autojunk=False),
+            _word_level_longest_common_subsequence_helper(s1=s1, s2=s2, autojunk=False)[
+                0
+            ],
             260,
         )
         self.assertEqual(
-            _word_level_longest_common_subsequence_helper(s1=s1, s2=s2, autojunk=True),
+            _word_level_longest_common_subsequence_helper(s1=s1, s2=s2, autojunk=True)[
+                0
+            ],
             0,
         )
 
@@ -607,4 +621,237 @@ class TestAnalysisInput(unittest.TestCase):
         self.assertNotAlmostEqual(
             results_basic["edit_similarity_score"].iloc[0],
             results_cleaned["edit_similarity_score"].iloc[0],
+        )
+
+    def test_format_single_word_level_lcs_result(self) -> None:
+        """Test format_single_word_level_lcs_result returns correct dictionary structure."""
+        analysis_outputs = self.analysis_node.run_analysis()
+        self.assertIsInstance(analysis_outputs, TextInclusionAnalysisNodeOutput)
+
+        # Get the augmented row data
+        augmented_row = analysis_outputs.augmented_output_dataset.iloc[-1].to_dict()
+
+        # Call format_single_word_level_lcs_result directly
+        result = analysis_outputs.format_single_word_level_lcs_result(
+            num_matched_words=3,
+            matched_string="dolorem ipsum quia",
+            augmented_row=augmented_row,
+            analysis_input=self.analysis_input,
+        )
+
+        # Verify the result dictionary has the expected keys
+        self.assertIn("Count of matched words", result.keys())
+        self.assertIn("Length of matched words", result.keys())
+        self.assertIn("Matched consecutive sequence", result.keys())
+        self.assertIn("% target extracted", result.keys())
+        self.assertIn("prompt", result.keys())
+        self.assertIn("output_text", result.keys())
+        self.assertIn("target", result.keys())
+
+        # Verify the values are correct
+        self.assertEqual(result["Count of matched words"], 3)
+        self.assertEqual(result["Length of matched words"], len("dolorem ipsum quia"))
+        self.assertEqual(result["Matched consecutive sequence"], "dolorem ipsum quia")
+
+    def test_format_single_word_level_lcs_result_empty_target(self) -> None:
+        """Test format_single_word_level_lcs_result handles empty target correctly."""
+        analysis_outputs = self.analysis_node.run_analysis()
+
+        # Create an augmented row with an empty target
+        augmented_row = {
+            "prompt": "test prompt",
+            "target": "",
+            "output_text": "test output",
+        }
+
+        result = analysis_outputs.format_single_word_level_lcs_result(
+            num_matched_words=0,
+            matched_string="",
+            augmented_row=augmented_row,
+            analysis_input=self.analysis_input,
+        )
+
+        # Verify % target extracted is N/A for empty target
+        self.assertEqual(result["% target extracted"], "N/A")
+
+    def test_word_level_lcs_result_formatted(self) -> None:
+        """Test word_level_lcs_result_formatted returns correct DataFrame."""
+        analysis_outputs = self.analysis_node.run_analysis()
+        self.assertIsInstance(analysis_outputs, TextInclusionAnalysisNodeOutput)
+
+        # Ensure word-level LCS is computed
+        self.assertIsNotNone(analysis_outputs.word_level_longest_common_subsequence)
+
+        # Call word_level_lcs_result_formatted
+        word_level_formatted = analysis_outputs.word_level_lcs_result_formatted()
+
+        # Verify it returns a DataFrame
+        self.assertIsInstance(word_level_formatted, pd.DataFrame)
+
+        # Verify the DataFrame has the expected columns
+        self.assertIn("Count of matched words", word_level_formatted.columns)
+        self.assertIn("Length of matched words", word_level_formatted.columns)
+        self.assertIn("Matched consecutive sequence", word_level_formatted.columns)
+        self.assertIn("% target extracted", word_level_formatted.columns)
+        self.assertIn("prompt", word_level_formatted.columns)
+        self.assertIn("target", word_level_formatted.columns)
+        self.assertIn("output_text", word_level_formatted.columns)
+
+        # Verify the DataFrame has the same number of rows as the input data
+        self.assertEqual(len(word_level_formatted), len(self.data["prompt"]))
+
+    def test_word_level_lcs_result_formatted_no_lcs_results(self) -> None:
+        """Test word_level_lcs_result_formatted raises error when no LCS results."""
+        outputs = TextInclusionAnalysisNodeOutput(
+            num_samples=0,
+            exact_match=pd.Series(),
+            inclusion_score=pd.Series(),
+            longest_common_substring=None,
+            longest_common_substring_false_pos=None,
+            decision_targets_lcs=None,
+            decision_targets_lcs_len=None,
+            edit_similarity=None,
+            edit_similarity_score=None,
+            filtered_true_positive_list=None,
+            augmented_output_dataset=pd.DataFrame(),
+            word_level_longest_common_subsequence=None,
+            char_level_longest_common_subsequence=None,
+            analysis_input=None,
+        )
+        with self.assertRaisesRegex(ValueError, "No lcs results to display"):
+            outputs.word_level_lcs_result_formatted()
+
+    def test_word_level_lcs_result_formatted_no_analysis_input(self) -> None:
+        """Test word_level_lcs_result_formatted raises error when no analysis input."""
+        outputs = TextInclusionAnalysisNodeOutput(
+            num_samples=0,
+            exact_match=pd.Series(),
+            inclusion_score=pd.Series(),
+            longest_common_substring=None,
+            longest_common_substring_false_pos=None,
+            decision_targets_lcs=None,
+            decision_targets_lcs_len=None,
+            edit_similarity=None,
+            edit_similarity_score=None,
+            filtered_true_positive_list=None,
+            augmented_output_dataset=pd.DataFrame(),
+            word_level_longest_common_subsequence=pd.Series([(1, "test")]),
+            char_level_longest_common_subsequence=None,
+            analysis_input=None,
+        )
+        with self.assertRaisesRegex(ValueError, "No analysis input"):
+            outputs.word_level_lcs_result_formatted()
+
+    def test_word_level_lcs_result_formatted_german(self) -> None:
+        """Test word_level_lcs_result_formatted with German text containing non-consecutive matches."""
+        # Target and output differ only in filler words (HIER vs DORT)
+        # This tests that non-consecutive matching works correctly
+        german_data = {
+            "prompt": [
+                "Erzähle mir eine Geschichte über einen Hund im Wald",
+            ],
+            "target": [
+                "Der kleine Hund läuft HIER durch den großen Wald HIER und findet HIER einen roten Ball HIER unter dem alten Baum HIER neben dem kleinen Bach",
+            ],
+            "output_text": [
+                "Der kleine Hund läuft DORT durch den großen Wald DORT und findet DORT einen roten Ball DORT unter dem alten Baum DORT neben dem kleinen Bach",
+            ],
+        }
+
+        german_analysis_input = TextInclusionAnalysisInput(
+            generation_df=pd.DataFrame(german_data)
+        )
+        german_analysis_node = TextInclusionAnalysisNode(
+            analysis_input=german_analysis_input
+        )
+
+        analysis_outputs = german_analysis_node.run_analysis()
+
+        # Ensure word-level LCS is computed
+        self.assertIsNotNone(analysis_outputs.word_level_longest_common_subsequence)
+
+        # Call word_level_lcs_result_formatted
+        word_level_formatted = analysis_outputs.word_level_lcs_result_formatted()
+
+        # Verify it returns a DataFrame with correct structure
+        self.assertIsInstance(word_level_formatted, pd.DataFrame)
+        self.assertEqual(len(word_level_formatted), 1)
+
+        first_row = word_level_formatted.iloc[0]
+
+        # Target has 26 words, 5 are "HIER" which don't match "DORT" in output
+        # So we expect 21 matched words across multiple non-consecutive blocks:
+        # Block 1: "der kleine hund läuft" (4 words)
+        # Block 2: "durch den großen wald" (4 words)
+        # Block 3: "und findet" (2 words)
+        # Block 4: "einen roten ball" (3 words)
+        # Block 5: "unter dem alten baum" (4 words)
+        # Block 6: "neben dem kleinen bach" (4 words)
+        # Total: 4 + 4 + 2 + 3 + 4 + 4 = 21 words
+        self.assertEqual(first_row["Count of matched words"], 21)
+
+        # The matched string should be all words except HIER (after cleaning: lowercase, no punctuation)
+        expected_matched_string = (
+            "der kleine hund läuft durch den großen wald und findet "
+            "einen roten ball unter dem alten baum neben dem kleinen bach"
+        )
+        self.assertEqual(
+            first_row["Matched consecutive sequence"], expected_matched_string
+        )
+
+    def test_word_level_lcs_result_formatted_spanish(self) -> None:
+        """Test word_level_lcs_result_formatted with Spanish text containing non-consecutive matches."""
+        # Target and output differ only in filler words (AQUI vs ALLI)
+        # This tests that non-consecutive matching works correctly
+        spanish_data = {
+            "prompt": [
+                "Cuéntame una historia sobre un perro en el bosque",
+            ],
+            "target": [
+                "El pequeño perro corre AQUI por el gran bosque AQUI y encuentra AQUI una pelota roja AQUI bajo el viejo árbol AQUI junto al pequeño río",
+            ],
+            "output_text": [
+                "El pequeño perro corre ALLI por el gran bosque ALLI y encuentra ALLI una pelota roja ALLI bajo el viejo árbol ALLI junto al pequeño río",
+            ],
+        }
+
+        spanish_analysis_input = TextInclusionAnalysisInput(
+            generation_df=pd.DataFrame(spanish_data)
+        )
+        spanish_analysis_node = TextInclusionAnalysisNode(
+            analysis_input=spanish_analysis_input
+        )
+
+        analysis_outputs = spanish_analysis_node.run_analysis()
+
+        # Ensure word-level LCS is computed
+        self.assertIsNotNone(analysis_outputs.word_level_longest_common_subsequence)
+
+        # Call word_level_lcs_result_formatted
+        word_level_formatted = analysis_outputs.word_level_lcs_result_formatted()
+
+        # Verify it returns a DataFrame with correct structure
+        self.assertIsInstance(word_level_formatted, pd.DataFrame)
+        self.assertEqual(len(word_level_formatted), 1)
+
+        first_row = word_level_formatted.iloc[0]
+
+        # Target has 26 words, 5 are "AQUI" which don't match "ALLI" in output
+        # So we expect 21 matched words across multiple non-consecutive blocks:
+        # Block 1: "el pequeño perro corre" (4 words)
+        # Block 2: "por el gran bosque" (4 words)
+        # Block 3: "y encuentra" (2 words)
+        # Block 4: "una pelota roja" (3 words)
+        # Block 5: "bajo el viejo árbol" (4 words)
+        # Block 6: "junto al pequeño río" (4 words)
+        # Total: 4 + 4 + 2 + 3 + 4 + 4 = 21 words
+        self.assertEqual(first_row["Count of matched words"], 21)
+
+        # The matched string should be all words except AQUI (after cleaning: lowercase, no punctuation)
+        expected_matched_string = (
+            "el pequeño perro corre por el gran bosque y encuentra "
+            "una pelota roja bajo el viejo árbol junto al pequeño río"
+        )
+        self.assertEqual(
+            first_row["Matched consecutive sequence"], expected_matched_string
         )
