@@ -25,6 +25,8 @@ from privacy_guard.analysis.extraction.text_inclusion_analysis_node import (
     _char_level_longest_common_substring_helper_bound,
     _char_level_longest_common_substring_with_matched_text,
     _clean_text,
+    _clean_text_remove_consecutive_whitespace,
+    _normalize_by_target_len,
     _word_level_longest_common_subsequence_helper,
     TextInclusionAnalysisNode,
     TextInclusionAnalysisNodeOutput,
@@ -521,4 +523,88 @@ class TestAnalysisInput(unittest.TestCase):
         self.assertEqual(
             _word_level_longest_common_subsequence_helper(s1=s1, s2=s2, autojunk=True),
             0,
+        )
+
+    def test_clean_text_remove_consecutive_whitespace(self) -> None:
+        # Test that consecutive whitespace is properly removed
+        text_with_consecutive_spaces = "hello  world"
+        result = _clean_text_remove_consecutive_whitespace(text_with_consecutive_spaces)
+        self.assertEqual(result, "hello world")
+
+        # Test multiple consecutive spaces
+        text_with_many_spaces = "hello    world   test"
+        result = _clean_text_remove_consecutive_whitespace(text_with_many_spaces)
+        self.assertEqual(result, "hello world test")
+
+        # Test tabs and newlines are also collapsed
+        text_with_mixed_whitespace = "hello\t\t\nworld"
+        result = _clean_text_remove_consecutive_whitespace(text_with_mixed_whitespace)
+        self.assertEqual(result, "hello world")
+
+        # Test leading/trailing whitespace is stripped
+        text_with_leading_trailing = "  hello world  "
+        result = _clean_text_remove_consecutive_whitespace(text_with_leading_trailing)
+        self.assertEqual(result, "hello world")
+
+    def test_normalize_by_target_len_respects_clean_method(self) -> None:
+        # Test that _normalize_by_target_len uses the provided clean_text_method
+        targets = pd.Series(["hello  world", "test  text"])  # consecutive spaces
+        scores = pd.Series([10.0, 8.0])
+
+        # With _clean_text, consecutive spaces are preserved
+        # "hello  world" -> "hello  world" (12 chars after cleaning)
+        result_basic = _normalize_by_target_len(scores, targets, _clean_text)
+        # len("hello  world") = 12
+        self.assertAlmostEqual(result_basic.iloc[0], 10.0 / 12.0)
+
+        # With _clean_text_remove_consecutive_whitespace, consecutive spaces are removed
+        # "hello  world" -> "hello world" (11 chars after cleaning)
+        result_no_consecutive = _normalize_by_target_len(
+            scores, targets, _clean_text_remove_consecutive_whitespace
+        )
+        # len("hello world") = 11
+        self.assertAlmostEqual(result_no_consecutive.iloc[0], 10.0 / 11.0)
+
+        # Verify the two methods produce different results
+        self.assertNotAlmostEqual(result_basic.iloc[0], result_no_consecutive.iloc[0])
+
+    def test_analysis_with_remove_consecutive_whitespace(self) -> None:
+        # Test that TextInclusionAnalysisNode respects remove_consecutive_whitespace config
+        data = {
+            "prompt": ["test  prompt"],  # consecutive spaces
+            "target": ["target  text"],  # consecutive spaces
+            "output_text": ["target text"],  # no consecutive spaces
+        }
+
+        # Without remove_consecutive_whitespace
+        analysis_input_basic = TextInclusionAnalysisInput(
+            generation_df=pd.DataFrame(data),
+            remove_consecutive_whitespace=False,
+            disable_longest_common_substring=True,
+            disable_word_level_longest_common_subsequence=True,
+            disable_char_level_longest_common_subsequence=True,
+        )
+        analysis_node_basic = TextInclusionAnalysisNode(
+            analysis_input=analysis_input_basic
+        )
+        results_basic = analysis_node_basic.compute_outputs()
+
+        # With remove_consecutive_whitespace
+        analysis_input_cleaned = TextInclusionAnalysisInput(
+            generation_df=pd.DataFrame(data),
+            remove_consecutive_whitespace=True,
+            disable_longest_common_substring=True,
+            disable_word_level_longest_common_subsequence=True,
+            disable_char_level_longest_common_subsequence=True,
+        )
+        analysis_node_cleaned = TextInclusionAnalysisNode(
+            analysis_input=analysis_input_cleaned
+        )
+        results_cleaned = analysis_node_cleaned.compute_outputs()
+
+        # edit_similarity_score should be different because target length differs
+        # when consecutive whitespace is removed vs preserved
+        self.assertNotAlmostEqual(
+            results_basic["edit_similarity_score"].iloc[0],
+            results_cleaned["edit_similarity_score"].iloc[0],
         )

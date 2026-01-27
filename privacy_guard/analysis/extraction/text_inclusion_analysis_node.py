@@ -138,6 +138,20 @@ def _clean_text(text: str) -> str:
     return cleaned_text
 
 
+def _clean_text_remove_consecutive_whitespace(text: str) -> str:
+    """Normalizes text.
+
+    - Lowercases
+    - Removes punctuation
+    - Turn newlines and tabs into spaces
+    - Strips leading and trailing whitespace
+    - Removes consecutive whitespace
+    """
+    cleaned_text = _clean_text(text=text)
+    cleaned_text = " ".join(cleaned_text.split())
+    return cleaned_text
+
+
 def _word_level_longest_common_subsequence_helper(
     s1: str, s2: str, autojunk: bool = True
 ) -> int:
@@ -245,9 +259,13 @@ def _char_level_longest_common_substring_helper(s1: str, s2: str) -> int:
     return max_length
 
 
-def _normalize_by_target_len(scores: pd.Series, targets: pd.Series) -> pd.Series:
+def _normalize_by_target_len(
+    scores: pd.Series,
+    targets: pd.Series,
+    clean_text_method: Callable[[str], str] = _clean_text,
+) -> pd.Series:
     """Normalized similarity metrics by target length."""
-    lengths = targets.progress_apply(lambda x: len(_clean_text(x)))
+    lengths = targets.progress_apply(lambda x: len(clean_text_method(x)))
     return scores / lengths
 
 
@@ -296,6 +314,12 @@ class TextInclusionAnalysisNode(BaseAnalysisNode):
             self.target_set_key
         ].apply(lambda x: len(x))
 
+        self.clean_text_method = (
+            _clean_text
+            if not analysis_input.remove_consecutive_whitespace
+            else _clean_text_remove_consecutive_whitespace
+        )
+
         super().__init__(analysis_input=analysis_input)
 
     def _compute_word_level_longest_common_subsequence_helper(
@@ -307,8 +331,8 @@ class TextInclusionAnalysisNode(BaseAnalysisNode):
         Returns:
             int: Number of shared words between the two strings.
         """
-        s1 = _clean_text(row[s1_column or self.target_key])
-        s2 = _clean_text(row[s2_column or self.generation_key])
+        s1 = self.clean_text_method(row[s1_column or self.target_key])
+        s2 = self.clean_text_method(row[s2_column or self.generation_key])
         return _word_level_longest_common_subsequence_helper(s1, s2)
 
     def _compute_char_level_longest_common_subsequence_helper(
@@ -320,8 +344,8 @@ class TextInclusionAnalysisNode(BaseAnalysisNode):
         Returns:
             int: Number of shared words between the two strings.
         """
-        s1 = _clean_text(row[s1_column or self.target_key])
-        s2 = _clean_text(row[s2_column or self.generation_key])
+        s1 = self.clean_text_method(row[s1_column or self.target_key])
+        s2 = self.clean_text_method(row[s2_column or self.generation_key])
         return _char_level_longest_common_subsequence_helper(s1, s2)
 
     def _compute_edit_similarity(
@@ -336,8 +360,8 @@ class TextInclusionAnalysisNode(BaseAnalysisNode):
         Returns:
             int: Edit similarity between the two strings.
         """
-        s1 = _clean_text(row[s1_column or self.target_key])
-        s2 = _clean_text(row[s2_column or self.generation_key])
+        s1 = self.clean_text_method(row[s1_column or self.target_key])
+        s2 = self.clean_text_method(row[s2_column or self.generation_key])
         levenshtein = textdistance.levenshtein.similarity(s1, s2)
         return levenshtein
 
@@ -363,8 +387,8 @@ class TextInclusionAnalysisNode(BaseAnalysisNode):
         Returns:
             bool: True if the target is included in the output_text, False otherwise.
         """
-        s1 = _clean_text(row[self.target_key])
-        s2 = _clean_text(row[self.generation_key])
+        s1 = self.clean_text_method(row[self.target_key])
+        s2 = self.clean_text_method(row[self.generation_key])
         return s1 in s2
 
     def get_compute_longest_common_substring_map(
@@ -415,11 +439,11 @@ class TextInclusionAnalysisNode(BaseAnalysisNode):
 
             target_set = row[self.target_set_key]
 
-            comparison_text = _clean_text(row[comparison_key])
-            fp_text = _clean_text(row[false_positive_key])
+            comparison_text = self.clean_text_method(row[comparison_key])
+            fp_text = self.clean_text_method(row[false_positive_key])
 
             for target in target_set:
-                clean_target = _clean_text(target)
+                clean_target = self.clean_text_method(target)
 
                 if lcs_bound_config is not None:
                     lcs = _char_level_longest_common_substring_helper_bound(
@@ -527,7 +551,9 @@ class TextInclusionAnalysisNode(BaseAnalysisNode):
                 self._compute_edit_similarity, axis=1
             )
             generation_df["edit_similarity_score"] = _normalize_by_target_len(
-                generation_df["edit_similarity"], generation_df["target"]
+                generation_df["edit_similarity"],
+                generation_df["target"],
+                self.clean_text_method,
             )
 
             outputs.edit_similarity = generation_df["edit_similarity"]
