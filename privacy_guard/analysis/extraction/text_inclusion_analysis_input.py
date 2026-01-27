@@ -50,6 +50,7 @@ class TextInclusionAnalysisInput(BaseAnalysisInput):
         lcs_bound_config: LCSBoundConfig | None = None,
         disable_word_level_longest_common_subsequence: bool = False,
         disable_char_level_longest_common_subsequence: bool = True,
+        remove_consecutive_whitespace: bool = False,
     ) -> None:
         columns = generation_df.columns.tolist()
         assert prompt_key in columns, (
@@ -77,6 +78,8 @@ class TextInclusionAnalysisInput(BaseAnalysisInput):
         self.disable_char_level_longest_common_subsequence = (
             disable_char_level_longest_common_subsequence
         )
+
+        self.remove_consecutive_whitespace = remove_consecutive_whitespace
 
         super().__init__(df_train_user=generation_df, df_test_user=pd.DataFrame())
 
