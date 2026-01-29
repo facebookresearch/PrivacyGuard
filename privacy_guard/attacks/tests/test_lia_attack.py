@@ -25,11 +25,14 @@ from privacy_guard.attacks.lia_attack import LIAAttack, LIAAttackInput
 
 class TestLIAAttackInput(unittest.TestCase):
     def setUp(self) -> None:
-        self.df_hold_out_train_json = """{"separable_id":{"0":100101280879201,"1":100101280879201,"2":100101280879201,"3":100113514211201,"4":100116367544001},"ad_id":{"0":120202291265480062,"1":23861966757870570,"2":120201337204280551,"3":6371985258328,"4":120200794973200645},"timestamp":{"0":1700972528,"1":1700972594,"2":1700972528,"3":1700928130,"4":1700933560},"impression_signature":{"0":39367.0,"1":55814.0,"2":304.0,"3":8246.0,"4":8514.0},"predictions":{"0":0.21985362,"1":0.10969869,"2":0.24854505,"3":0.0068224324,"4":0.004189688},"label":{"0":0.0,"1":1.0,"2":0.0,"3":1.0,"4":1.0}}"""
+        self.df_hold_out_train_json = """{"user_id":{"0":00001,"1":00002,"2":00003,"3":00004,"4":00005},"sample_id":{"0":101,"1":102,"2":103,"3":104,"4":105},"timestamp":{"0":1000000001,"1":1000000002,"2":1000000003,"3":1000000004,"4":1000000005},"hash_id":{"0":30001.0,"1":30002.0,"2":50.0,"3":51.0,"4":52.0},"predictions":{"0":0.21985362,"1":0.10969869,"2":0.24854505,"3":0.0068224324,"4":0.004189688},"label":{"0":0.0,"1":1.0,"2":0.0,"3":1.0,"4":1.0}}"""
         self.df_hold_out_train = pd.read_json(self.df_hold_out_train_json)
 
-        self.df_hold_out_train_calib_json = """{"separable_id":{"0":100101280879201,"1":100101280879201,"2":100101280879201,"3":100113514211201,"4":100116367544001},"ad_id":{"0":120202291265480062,"1":23861966757870570,"2":120201337204280551,"3":6371985258328,"4":120200794973200645},"timestamp":{"0":1700972528,"1":1700972594,"2":1700972528,"3":1700928130,"4":1700933560},"impression_signature":{"0":39367.0,"1":55814.0,"2":304.0,"3":8246.0,"4":8514.0},"predictions":{"0":0.19985362,"1":0.12969869,"2":0.22854505,"3":0.0078224324,"4":0.005189688}, "label":{"0":0.0,"1":1.0,"2":0.0,"3":1.0,"4":1.0}}"""
+        self.df_hold_out_train_calib_json = """{"user_id":{"0":00001,"1":00002,"2":00003,"3":00004,"4":00005},"sample_id":{"0":101,"1":102,"2":103,"3":104,"4":105},"timestamp":{"0":1000000001,"1":1000000002,"2":1000000003,"3":1000000004,"4":1000000005},"hash_id":{"0":30001.0,"1":30002.0,"2":50.0,"3":51.0,"4":52.0},"predictions":{"0":0.19985362,"1":0.12969869,"2":0.22854505,"3":0.0078224324,"4":0.005189688}, "label":{"0":0.0,"1":1.0,"2":0.0,"3":1.0,"4":1.0}}"""
         self.df_hold_out_train_calib = pd.read_json(self.df_hold_out_train_calib_json)
+
+        self.MERGE_COLUMNS = ["user_id", "sample_id", "timestamp", "hash_id", "label"]
+        self.user_id_key = "user_id"
 
         super().setUp()
 
@@ -39,18 +42,21 @@ class TestLIAAttackInput(unittest.TestCase):
             df_hold_out_train=self.df_hold_out_train,
             df_hold_out_train_calib=self.df_hold_out_train_calib,
             row_aggregation=AggregationType.MAX,
+            user_id_key=self.user_id_key,
+            merge_columns=self.MERGE_COLUMNS,
         )
         self.assertIsNotNone(lia_input)
         self.assertEqual(lia_input.row_aggregation, AggregationType.MAX)
-        self.assertEqual(lia_input.merge_columns, LIAAttackInput.ADS_MERGE_COLUMNS)
+        self.assertEqual(lia_input.merge_columns, self.MERGE_COLUMNS)
 
     def test_custom_merge_columns(self) -> None:
         """Test initialization with custom merge columns."""
-        custom_columns = ["separable_id", "ad_id", "timestamp"]
+        custom_columns = ["user_id", "sample_id", "timestamp"]
         lia_input = LIAAttackInput(
             df_hold_out_train=self.df_hold_out_train,
             df_hold_out_train_calib=self.df_hold_out_train_calib,
             row_aggregation=AggregationType.MAX,
+            user_id_key=self.user_id_key,
             merge_columns=custom_columns,
         )
         self.assertEqual(lia_input.merge_columns, custom_columns)
@@ -58,14 +64,14 @@ class TestLIAAttackInput(unittest.TestCase):
     def test_input_validation_errors(self) -> None:
         """Test that appropriate errors are raised for invalid inputs."""
         # Test missing column error
-        df_missing_column = self.df_hold_out_train.drop(
-            columns=["impression_signature"]
-        )
+        df_missing_column = self.df_hold_out_train.drop(columns=["hash_id"])
         with self.assertRaises(IndexError):
             LIAAttackInput(
                 df_hold_out_train=df_missing_column,
                 df_hold_out_train_calib=self.df_hold_out_train_calib,
                 row_aggregation=AggregationType.MAX,
+                user_id_key=self.user_id_key,
+                merge_columns=self.MERGE_COLUMNS,
             )
 
         # Test empty dataframe errors
@@ -75,6 +81,8 @@ class TestLIAAttackInput(unittest.TestCase):
                 df_hold_out_train=empty_df,
                 df_hold_out_train_calib=self.df_hold_out_train_calib,
                 row_aggregation=AggregationType.MAX,
+                user_id_key=self.user_id_key,
+                merge_columns=self.MERGE_COLUMNS,
             )
 
         with self.assertRaises(ValueError):
@@ -82,6 +90,8 @@ class TestLIAAttackInput(unittest.TestCase):
                 df_hold_out_train=self.df_hold_out_train,
                 df_hold_out_train_calib=empty_df,
                 row_aggregation=AggregationType.MAX,
+                user_id_key=self.user_id_key,
+                merge_columns=self.MERGE_COLUMNS,
             )
 
         # Test missing predictions column error
@@ -91,6 +101,8 @@ class TestLIAAttackInput(unittest.TestCase):
                 df_hold_out_train=df_no_predictions,
                 df_hold_out_train_calib=self.df_hold_out_train_calib,
                 row_aggregation=AggregationType.MAX,
+                user_id_key=self.user_id_key,
+                merge_columns=self.MERGE_COLUMNS,
             )
 
     def test_aggregate_strategies(self) -> None:
@@ -98,7 +110,7 @@ class TestLIAAttackInput(unittest.TestCase):
         # Create test dataframe with score column
         test_df = pd.DataFrame(
             {
-                "separable_id": [1, 1, 2, 2],
+                "user_id": [1, 1, 2, 2],
                 "score": [-0.5, 0.3, 0.8, -0.9],
                 "other_col": ["a", "b", "c", "d"],
             }
@@ -109,9 +121,11 @@ class TestLIAAttackInput(unittest.TestCase):
             df_hold_out_train=self.df_hold_out_train,
             df_hold_out_train_calib=self.df_hold_out_train_calib,
             row_aggregation=AggregationType.ABS_MAX,
+            user_id_key=self.user_id_key,
+            merge_columns=self.MERGE_COLUMNS,
         )
         result_abs_max = lia_input_abs_max.aggregate(test_df)
-        # Should select rows with highest absolute score for each separable_id
+        # Should select rows with highest absolute score for each user_id
         expected_indices_abs_max = [0, 3]  # -0.5 (abs=0.5) and -0.9 (abs=0.9)
         self.assertEqual(len(result_abs_max), 2)
         assert_array_equal(result_abs_max.index.values, expected_indices_abs_max)
@@ -122,6 +136,8 @@ class TestLIAAttackInput(unittest.TestCase):
             df_hold_out_train=self.df_hold_out_train,
             df_hold_out_train_calib=self.df_hold_out_train_calib,
             row_aggregation=AggregationType.MAX,
+            user_id_key=self.user_id_key,
+            merge_columns=self.MERGE_COLUMNS,
         )
         result_max = lia_input_max.aggregate(test_df)
         expected_indices_max = [1, 2]  # 0.3 and 0.8
@@ -133,6 +149,8 @@ class TestLIAAttackInput(unittest.TestCase):
             df_hold_out_train=self.df_hold_out_train,
             df_hold_out_train_calib=self.df_hold_out_train_calib,
             row_aggregation=AggregationType.MIN,
+            user_id_key=self.user_id_key,
+            merge_columns=self.MERGE_COLUMNS,
         )
         result_min = lia_input_min.aggregate(test_df)
         expected_indices_min = [0, 3]  # -0.5 and -0.9
@@ -144,6 +162,8 @@ class TestLIAAttackInput(unittest.TestCase):
             df_hold_out_train=self.df_hold_out_train,
             df_hold_out_train_calib=self.df_hold_out_train_calib,
             row_aggregation=AggregationType.NONE,
+            user_id_key=self.user_id_key,
+            merge_columns=self.MERGE_COLUMNS,
         )
         result_none = lia_input_none.aggregate(test_df)
         # Should return the same dataframe
@@ -155,6 +175,8 @@ class TestLIAAttackInput(unittest.TestCase):
             df_hold_out_train=self.df_hold_out_train,
             df_hold_out_train_calib=self.df_hold_out_train_calib,
             row_aggregation=AggregationType.MAX,
+            user_id_key=self.user_id_key,
+            merge_columns=self.MERGE_COLUMNS,
         )
 
         attack_input = lia_input.prepare_attack_input()
@@ -175,17 +197,22 @@ class TestLIAAttackInput(unittest.TestCase):
 
 class TestLIAAttack(unittest.TestCase):
     def setUp(self) -> None:
-        self.df_hold_out_train_json = """{"separable_id":{"0":100101280879201,"1":100101280879201,"2":100101280879201,"3":100113514211201,"4":100116367544001},"ad_id":{"0":120202291265480062,"1":23861966757870570,"2":120201337204280551,"3":6371985258328,"4":120200794973200645},"timestamp":{"0":1700972528,"1":1700972594,"2":1700972528,"3":1700928130,"4":1700933560},"impression_signature":{"0":39367.0,"1":55814.0,"2":304.0,"3":8246.0,"4":8514.0},"predictions":{"0":0.21985362,"1":0.10969869,"2":0.24854505,"3":0.0068224324,"4":0.004189688},"label":{"0":0.0,"1":1.0,"2":0.0,"3":1.0,"4":1.0}}"""
+        self.df_hold_out_train_json = """{"user_id":{"0":00001,"1":00002,"2":00003,"3":00004,"4":00005},"sample_id":{"0":101,"1":102,"2":103,"3":104,"4":105},"timestamp":{"0":1000000001,"1":1000000002,"2":1000000003,"3":1000000004,"4":1000000005},"hash_id":{"0":30001.0,"1":30002.0,"2":50.0,"3":51.0,"4":52.0},"predictions":{"0":0.21985362,"1":0.10969869,"2":0.24854505,"3":0.0068224324,"4":0.004189688},"label":{"0":0.0,"1":1.0,"2":0.0,"3":1.0,"4":1.0}}"""
         self.df_hold_out_train = pd.read_json(self.df_hold_out_train_json)
 
-        self.df_hold_out_train_calib_json = """{"separable_id":{"0":100101280879201,"1":100101280879201,"2":100101280879201,"3":100113514211201,"4":100116367544001},"ad_id":{"0":120202291265480062,"1":23861966757870570,"2":120201337204280551,"3":6371985258328,"4":120200794973200645},"timestamp":{"0":1700972528,"1":1700972594,"2":1700972528,"3":1700928130,"4":1700933560},"impression_signature":{"0":39367.0,"1":55814.0,"2":304.0,"3":8246.0,"4":8514.0},"predictions":{"0":0.19985362,"1":0.12969869,"2":0.22854505,"3":0.0078224324,"4":0.005189688}, "label":{"0":0.0,"1":1.0,"2":0.0,"3":1.0,"4":1.0}}"""
+        self.df_hold_out_train_calib_json = """{"user_id":{"0":00001,"1":00002,"2":00003,"3":00004,"4":00005},"sample_id":{"0":101,"1":102,"2":103,"3":104,"4":105},"timestamp":{"0":1000000001,"1":1000000002,"2":1000000003,"3":1000000004,"4":1000000005},"hash_id":{"0":30001.0,"1":30002.0,"2":50.0,"3":51.0,"4":52.0},"predictions":{"0":0.19985362,"1":0.12969869,"2":0.22854505,"3":0.0078224324,"4":0.005189688}, "label":{"0":0.0,"1":1.0,"2":0.0,"3":1.0,"4":1.0}}"""
         self.df_hold_out_train_calib = pd.read_json(self.df_hold_out_train_calib_json)
+
+        self.MERGE_COLUMNS = ["user_id", "sample_id", "timestamp", "hash_id", "label"]
+        self.user_id_key = "user_id"
 
         # Prepare attack input
         lia_input = LIAAttackInput(
             df_hold_out_train=self.df_hold_out_train,
             df_hold_out_train_calib=self.df_hold_out_train_calib,
             row_aggregation=AggregationType.MAX,
+            user_id_key=self.user_id_key,
+            merge_columns=self.MERGE_COLUMNS,
         )
         self.attack_input = lia_input.prepare_attack_input()
 
@@ -237,7 +264,7 @@ class TestLIAAttack(unittest.TestCase):
         """Test y1 predictions generation using reference strategy."""
         # Add reference predictions to attack input
         df_with_reference = self.attack_input["df_aggregated"].copy()
-        df_with_reference["predictions_reference"] = [0.15, 0.08, 0.20]
+        df_with_reference["predictions_reference"] = [0.15, 0.08, 0.20, 0.12, 0.18]
 
         attack_input_with_ref = {
             "df_train_and_calib": self.attack_input["df_train_and_calib"],
@@ -308,7 +335,7 @@ class TestLIAAttack(unittest.TestCase):
         # Create a simple test case with constant calibration predictions
         test_df = pd.DataFrame(
             {
-                "separable_id": [1, 2, 3, 4, 5],
+                "user_id": [1, 2, 3, 4, 5],
                 "predictions": [0.5, 0.5, 0.5, 0.5, 0.5],
                 "predictions_calib": [0.3, 0.3, 0.3, 0.3, 0.3],
                 "label": [0, 1, 0, 1, 0],
@@ -366,6 +393,8 @@ class TestLIAAttack(unittest.TestCase):
             df_hold_out_train=self.df_hold_out_train,
             df_hold_out_train_calib=self.df_hold_out_train_calib,
             row_aggregation=AggregationType.NONE,
+            user_id_key=self.user_id_key,
+            merge_columns=self.MERGE_COLUMNS,
         )
         attack_input_no_agg = lia_input.prepare_attack_input()
 

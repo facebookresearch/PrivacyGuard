@@ -24,19 +24,12 @@ from privacy_guard.attacks.base_attack import BaseAttack
 
 
 class LIAAttackInput:
-    ADS_MERGE_COLUMNS = [
-        "separable_id",
-        "ad_id",
-        "timestamp",
-        "impression_signature",
-        "label",
-    ]
-
     def __init__(
         self,
         df_hold_out_train: pd.DataFrame,
         df_hold_out_train_calib: pd.DataFrame,
         row_aggregation: AggregationType,
+        user_id_key: str = "user_id",
         merge_columns: List[str] | None = None,
     ) -> None:
         """
@@ -44,12 +37,15 @@ class LIAAttackInput:
             df_hold_out_train: Subset of training set containing canaries for the attack
             df_hold_out_train_calib: Samples of df_hold_out_train evaluated on a calibration model/snapshot.
             row_aggregation: specifies aggregation strategy for aggregating rows for each user.
+            user_id_key: key representing user ids, to use in aggregation.
             merge_columns: columns to merge on for df_hold_out_train and df_hold_out_train_calib.
+                If None, will default to user_id_key only.
         """
         self.df_hold_out_train = df_hold_out_train
         self.df_hold_out_train_calib = df_hold_out_train_calib
         self.row_aggregation = row_aggregation
-        self.merge_columns: List[str] = merge_columns or self.ADS_MERGE_COLUMNS
+        self.user_id_key = user_id_key
+        self.merge_columns: List[str] = merge_columns or [user_id_key]
 
         if self.df_hold_out_train.shape[0] == 0:
             raise ValueError("df_hold_out_train must be non-empty")
@@ -76,11 +72,11 @@ class LIAAttackInput:
         print("Aggregating tables...")
         if self.row_aggregation == AggregationType.ABS_MAX:
             df["abs_score"] = df["score"].abs()
-            return df.loc[df.groupby("separable_id")["abs_score"].idxmax()]
+            return df.loc[df.groupby(self.user_id_key)["abs_score"].idxmax()]
         elif self.row_aggregation == AggregationType.MAX:
-            return df.loc[df.groupby("separable_id")["score"].idxmax()]
+            return df.loc[df.groupby(self.user_id_key)["score"].idxmax()]
         elif self.row_aggregation == AggregationType.MIN:
-            return df.loc[df.groupby("separable_id")["score"].idxmin()]
+            return df.loc[df.groupby(self.user_id_key)["score"].idxmin()]
         elif self.row_aggregation == AggregationType.NONE:
             return df
         else:
