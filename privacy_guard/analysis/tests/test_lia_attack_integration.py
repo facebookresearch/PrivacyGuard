@@ -42,7 +42,7 @@ class TestLIAAttackIntegration(unittest.TestCase):
         # Configuration for attack
         self.delta = 1e-6  # Delta parameter for privacy analysis
         self.row_aggregation = AggregationType.NONE
-        self.merge_columns = ["separable_id", "label"]
+        self.merge_columns = ["user_id", "label"]
         self.num_resampling_times = 10
         self.num_bootstrap_resampling_times = 10
 
@@ -72,7 +72,7 @@ class TestLIAAttackIntegration(unittest.TestCase):
         # Create dataframes
         df_hold_out_train = pd.DataFrame(
             {
-                "separable_id": np.arange(self.num_users),
+                "user_id": np.arange(self.num_users),
                 "label": labels,
                 "predictions": predictions,
             }
@@ -80,7 +80,7 @@ class TestLIAAttackIntegration(unittest.TestCase):
 
         df_hold_out_train_calib = pd.DataFrame(
             {
-                "separable_id": np.arange(self.num_users),
+                "user_id": np.arange(self.num_users),
                 "label": labels,
                 "predictions": predictions_calib,
             }
