@@ -16,7 +16,7 @@ import time
 from collections.abc import Generator
 from contextlib import contextmanager
 from dataclasses import dataclass
-from typing import List
+from typing import List, Optional
 
 import numpy as np
 import torch
@@ -53,6 +53,7 @@ class AnalysisNodeOutput(BaseAnalysisOutput):
         auc (float): Mean area under the curve (AUC) of the attack.
         auc_ci (List[float]): Confidence interval for the AUC, represented as [lower_bound, upper_bound].
         data_size (dict[str, int]): Size of the training, test dataset and bootstrap sample size.
+        tpr_target (float): Target TPR used for computing epsilon.
     """
 
     # Empirical epsilons
@@ -73,6 +74,9 @@ class AnalysisNodeOutput(BaseAnalysisOutput):
     auc_ci: List[float]
     # Dataset sizes
     data_size: dict[str, int]
+    # TPR target and index (only set when custom tpr_target is provided)
+    tpr_target: Optional[float]
+    tpr_idx: Optional[int]
 
 
 class AnalysisNode(BaseAnalysisNode):
@@ -93,6 +97,11 @@ class AnalysisNode(BaseAnalysisNode):
         use_fnr_tnr: boolean for whether to use FNR and TNR in addition to FPR and TPR error thresholds in eps_max_array computation.
         show_progress: boolean for whether to show tqdm progress bar
         with_timer: boolean for whether to show timer for analysis node
+        tpr_target: Optional target TPR for computing epsilon. If None (default), uses legacy 1% intervals.
+                   If specified, uses fine-grained intervals determined by tpr_threshold_width.
+        tpr_threshold_width: Width (step size) between TPR thresholds for fine-grained mode.
+                            Only used when tpr_target is specified. Default 0.0025 (0.25%).
+                            Start is always fixed at 0.01. num_thresholds = int((1.0 - 0.01) / width) + 1.
     """
 
     def __init__(
@@ -106,6 +115,8 @@ class AnalysisNode(BaseAnalysisNode):
         use_fnr_tnr: bool = False,
         show_progress: bool = False,
         with_timer: bool = False,
+        tpr_target: Optional[float] = None,
+        tpr_threshold_width: float = 0.0025,
     ) -> None:
         self._delta = delta
         self._n_users_for_eval = n_users_for_eval
@@ -117,6 +128,10 @@ class AnalysisNode(BaseAnalysisNode):
 
         self._use_upper_bound = use_upper_bound
 
+        self._tpr_target = tpr_target
+        self._tpr_threshold_width = tpr_threshold_width
+        self._num_thresholds: int
+
         self._timer_stats: TimerStats = {}
 
         if self._n_users_for_eval < 0:
@@ -124,7 +139,47 @@ class AnalysisNode(BaseAnalysisNode):
                 'Input to AnalysisNode "n_users_for_eval" must be nonnegative'
             )
 
+        if self._tpr_target is not None:
+            assert isinstance(self._tpr_target, float)
+            if self._tpr_target < 0.01 or self._tpr_target > 1.0:
+                raise ValueError(
+                    'Input to AnalysisNode "tpr_target" must be between 0.01 and 1.0'
+                )
+
+        if self._tpr_threshold_width <= 0:
+            raise ValueError(
+                'Input to AnalysisNode "tpr_threshold_width" must be positive'
+            )
+
+        if not np.isclose(
+            0.99 / self._tpr_threshold_width,
+            round(0.99 / self._tpr_threshold_width),
+        ):
+            raise ValueError(
+                'Input to AnalysisNode "tpr_threshold_width" must evenly divide 0.99. '
+                "Valid examples: 0.001, 0.0025, 0.003, 0.005, 0.01"
+            )
+
+        # Determine num_thresholds based on tpr_target
+        if self._tpr_target is None:
+            # Legacy: 1% intervals (0.01 to 1.0, 100 thresholds)
+            self._num_thresholds = 100
+            self._tpr_threshold_width = 0.01
+        else:
+            self._tpr_threshold_width = tpr_threshold_width
+            self._num_thresholds = int((1.0 - 0.01) / tpr_threshold_width) + 1
+
+        self._error_thresholds: NDArray[np.floating] = np.linspace(
+            0.01, 1.0, self._num_thresholds
+        )
+
         super().__init__(analysis_input=analysis_input)
+
+    def _get_tpr_index(self) -> int:
+        """Convert TPR target to array index."""
+        if self._tpr_target is None:
+            return 0  # Legacy behavior: TPR = 1% is at index 0
+        return int(np.where(self._error_thresholds == self._tpr_target)[0][0])
 
     def _calculate_one_off_eps(self) -> float:
         df_train_user = self.analysis_input.df_train_user
@@ -253,9 +308,10 @@ class AnalysisNode(BaseAnalysisNode):
 
         eps_tpr_boundary = eps_tpr_ub if self._use_upper_bound else eps_tpr_lb
 
+        tpr_idx = self._get_tpr_index()
         outputs = AnalysisNodeOutput(
-            eps=eps_tpr_boundary[0],  # epsilon at TPR=1% UB threshold
-            eps_lb=eps_tpr_lb[0],
+            eps=eps_tpr_boundary[tpr_idx],  # epsilon at specified TPR threshold
+            eps_lb=eps_tpr_lb[tpr_idx],
             eps_fpr_max_ub=np.nanmax(eps_fpr_ub),
             eps_fpr_lb=list(eps_fpr_lb),
             eps_fpr_ub=list(eps_fpr_ub),
@@ -273,6 +329,8 @@ class AnalysisNode(BaseAnalysisNode):
                 "test_size": test_size,
                 "bootstrap_size": bootstrap_sample_size,
             },
+            tpr_target=self._tpr_target,
+            tpr_idx=tpr_idx,
         )
 
         if self._with_timer:
@@ -313,8 +371,6 @@ class AnalysisNode(BaseAnalysisNode):
 
         bootstrap_sample_size = min(train_size, test_size)
 
-        error_thresholds = np.linspace(0.01, 1, 100)
-
         metrics_array = [
             MIAResults(
                 loss_train[
@@ -329,7 +385,7 @@ class AnalysisNode(BaseAnalysisNode):
                 ],
             ).compute_metrics_at_error_threshold(
                 self._delta,
-                error_threshold=error_thresholds,
+                error_threshold=self._error_thresholds,
                 cap_eps=self._cap_eps,
                 use_fnr_tnr=self._use_fnr_tnr,
                 verbose=False,

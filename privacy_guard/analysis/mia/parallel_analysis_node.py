@@ -15,6 +15,7 @@ import logging
 import os
 import tempfile
 from concurrent.futures import ProcessPoolExecutor
+from typing import Optional
 
 import numpy as np
 import torch
@@ -41,6 +42,8 @@ class ParallelAnalysisNode(AnalysisNode):
         use_upper_bound: boolean for whether to compute epsilon at the upper-bound of CI
         use_fnr_tnr: boolean for whether to use FNR and TNR in addition to FPR and TPR error thresholds in eps_max_array computation.
         with_timer: boolean for whether to show timer for analysis node
+        tpr_target: Optional target TPR for computing epsilon. If None (default), uses legacy 1% intervals.
+        tpr_threshold_width: Width between TPR thresholds for fine-grained mode. Default 0.0025.
     """
 
     def __init__(
@@ -53,6 +56,8 @@ class ParallelAnalysisNode(AnalysisNode):
         num_bootstrap_resampling_times: int = 1000,
         use_fnr_tnr: bool = False,
         with_timer: bool = False,
+        tpr_target: Optional[float] = None,
+        tpr_threshold_width: float = 0.0025,
     ) -> None:
         super().__init__(
             analysis_input=analysis_input,
@@ -62,6 +67,8 @@ class ParallelAnalysisNode(AnalysisNode):
             num_bootstrap_resampling_times=num_bootstrap_resampling_times,
             use_fnr_tnr=use_fnr_tnr,
             with_timer=with_timer,
+            tpr_target=tpr_target,
+            tpr_threshold_width=tpr_threshold_width,
         )
         self._eps_computation_tasks_num = eps_computation_tasks_num
 
@@ -87,7 +94,6 @@ class ParallelAnalysisNode(AnalysisNode):
         loss_test: torch.Tensor = torch.load(test_filename, weights_only=True)
         train_size, test_size = loss_train.shape[0], loss_test.shape[0]
         bootstrap_sample_size = min(train_size, test_size)
-        error_thresholds = np.linspace(0.01, 1, 100)
         metrics_results = []
 
         try:
@@ -107,7 +113,7 @@ class ParallelAnalysisNode(AnalysisNode):
 
                 metrics_result = mia_results.compute_metrics_at_error_threshold(
                     self._delta,
-                    error_threshold=error_thresholds,
+                    error_threshold=self._error_thresholds,
                     use_fnr_tnr=self._use_fnr_tnr,
                     verbose=False,
                 )
@@ -221,9 +227,10 @@ class ParallelAnalysisNode(AnalysisNode):
 
         eps_tpr_boundary = eps_tpr_ub if self._use_upper_bound else eps_tpr_lb
 
+        tpr_idx = self._get_tpr_index()
         outputs = AnalysisNodeOutput(
-            eps=eps_tpr_boundary[0],  # epsilon at TPR=1% UB threshold
-            eps_lb=eps_tpr_lb[0],
+            eps=eps_tpr_boundary[tpr_idx],  # epsilon at specified TPR threshold
+            eps_lb=eps_tpr_lb[tpr_idx],
             eps_fpr_max_ub=np.nanmax(eps_fpr_ub),
             eps_fpr_lb=list(eps_fpr_lb),
             eps_fpr_ub=list(eps_fpr_ub),
@@ -243,6 +250,8 @@ class ParallelAnalysisNode(AnalysisNode):
                 "test_size": test_size,
                 "bootstrap_size": bootstrap_sample_size,
             },
+            tpr_target=self._tpr_target,
+            tpr_idx=tpr_idx,
         )
 
         if self._with_timer:

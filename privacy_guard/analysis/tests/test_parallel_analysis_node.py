@@ -308,3 +308,22 @@ class TestParallelAnalysisNode(BaseTestAnalysisNode):
         self.assertGreater(
             len(outputs_false["eps_tpr_ub"]), len(outputs_true["eps_tpr_ub"])
         )
+
+    def test_tpr_target_parameter(self) -> None:
+        """Test that tpr_target parameter works correctly in ParallelAnalysisNode."""
+        parallel_node = ParallelAnalysisNode(
+            analysis_input=self.analysis_input,
+            delta=0.000001,
+            n_users_for_eval=100,
+            num_bootstrap_resampling_times=10,
+            eps_computation_tasks_num=2,
+            tpr_target=0.025,
+            tpr_threshold_width=0.0025,
+        )
+        # Verify _get_tpr_index returns correct index
+        tpr_idx = parallel_node._get_tpr_index()
+        self.assertAlmostEqual(
+            parallel_node._error_thresholds[tpr_idx],
+            0.025,
+            places=10,
+        )
