@@ -36,7 +36,7 @@ TimerStats = dict[str, float]
 @dataclass
 class AnalysisNodeOutput(BaseAnalysisOutput):
     """
-    A dataclass to encapsulate the outputs of AnalsyisNode.
+    A dataclass to encapsulate the outputs of AnalysisNode.
     Attributes:
         eps (float): Epsilon value at the TPR=1% UB or LB threshold depending on attack settings.
         eps_lb (float): Lower bound of epsilon.
