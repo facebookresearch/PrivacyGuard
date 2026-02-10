@@ -109,7 +109,7 @@ class TestAnalysisNode(BaseTestAnalysisNode):
 
     def test_turn_cap_eps_on(self) -> None:
         """
-        Tests capping of computed epsilons. Under cap_eps=True and a seprable setting with two users, the max eps should be log(2) = 0.693.
+        Tests capping of computed epsilons. Under cap_eps=True and a separable setting with two users, the max eps should be log(2) = 0.693.
         """
         analysis_node = AnalysisNode(
             self.separable_base_analysis_input,
@@ -121,12 +121,12 @@ class TestAnalysisNode(BaseTestAnalysisNode):
         eps_tpr_ub = max(
             outputs["eps_tpr_ub"]
         )  # max eps over all TPR thresholds, should be log(2) ~ 0.693
-        assert abs(eps_tpr_ub - np.log(2)) < 1e-6
+        self.assertAlmostEqual(eps_tpr_ub, np.log(2), places=6)
 
         eps_fpr_ub = max(
             outputs["eps_fpr_ub"]
         )  # max eps over all FPR thresholds, should be log(2) ~ 0.693
-        assert abs(eps_fpr_ub - np.log(2)) < 1e-6
+        self.assertAlmostEqual(eps_fpr_ub, np.log(2), places=6)
 
     def test_turn_cap_eps_off(self) -> None:
         """
@@ -142,13 +142,12 @@ class TestAnalysisNode(BaseTestAnalysisNode):
         eps_tpr_ub = max(
             outputs["eps_tpr_ub"]
         )  # max eps over all TPR thresholds, should be inf
-        assert eps_tpr_ub == float("inf")
+        self.assertEqual(eps_tpr_ub, float("inf"))
 
         eps_fpr_ub = max(
             outputs["eps_fpr_ub"]
         )  # max eps over all FPR thresholds, should be inf
-        print(outputs["eps_tpr_ub"], outputs["eps_fpr_ub"])
-        assert eps_fpr_ub == float("inf")
+        self.assertEqual(eps_fpr_ub, float("inf"))
 
     def test_num_bootstrap_resampling(self) -> None:
         """
@@ -237,80 +236,34 @@ class TestAnalysisNode(BaseTestAnalysisNode):
         self.assertIsInstance(analysis_outputs, AnalysisNodeOutput)
         analysis_outputs_dict = self.analysis_node.compute_outputs()
         self.assertIsInstance(analysis_outputs_dict, dict)
+
+        # Scalar float fields
         self.assertIsInstance(analysis_outputs_dict["eps"], (float, np.floating))
         self.assertIsInstance(analysis_outputs_dict["eps_lb"], (float, np.floating))
         self.assertIsInstance(
             analysis_outputs_dict["eps_fpr_max_ub"], (float, np.floating)
         )
-        self.assertIsInstance(analysis_outputs_dict["eps_fpr_lb"], list)
-        self.assertTrue(
-            all(
-                isinstance(x, (float, np.floating))
-                for x in analysis_outputs_dict["eps_fpr_lb"]
-            )
-        )
-        self.assertIsInstance(analysis_outputs_dict["eps_fpr_ub"], list)
-        self.assertTrue(
-            all(
-                isinstance(x, (float, np.floating))
-                for x in analysis_outputs_dict["eps_fpr_ub"]
-            )
-        )
-        self.assertIsInstance(analysis_outputs_dict["eps_tpr_lb"], list)
-        self.assertTrue(
-            all(
-                isinstance(x, (float, np.floating))
-                for x in analysis_outputs_dict["eps_tpr_lb"]
-            )
-        )
-        self.assertIsInstance(analysis_outputs_dict["eps_tpr_ub"], list)
-        self.assertTrue(
-            all(
-                isinstance(x, (float, np.floating))
-                for x in analysis_outputs_dict["eps_tpr_ub"]
-            )
-        )
-        self.assertIsInstance(analysis_outputs_dict["eps_max_lb"], list)
-        self.assertTrue(
-            all(
-                isinstance(x, (float, np.floating))
-                for x in analysis_outputs_dict["eps_max_lb"]
-            )
-        )
-        self.assertIsInstance(analysis_outputs_dict["eps_max_ub"], list)
-        self.assertTrue(
-            all(
-                isinstance(x, (float, np.floating))
-                for x in analysis_outputs_dict["eps_max_ub"]
-            )
-        )
         self.assertIsInstance(analysis_outputs_dict["eps_cp"], (float, np.floating))
-
         self.assertIsInstance(analysis_outputs_dict["accuracy"], (float, np.floating))
-        self.assertIsInstance(analysis_outputs_dict["accuracy_ci"], list)
-        self.assertEqual(len(analysis_outputs_dict["accuracy_ci"]), 2)
-        self.assertTrue(
-            all(
-                isinstance(x, (float, np.floating))
-                for x in analysis_outputs_dict["accuracy_ci"]
-            )
-        )
-
         self.assertIsInstance(analysis_outputs_dict["auc"], (float, np.floating))
-        self.assertIsInstance(analysis_outputs_dict["auc_ci"], list)
-        self.assertEqual(len(analysis_outputs_dict["auc_ci"]), 2)
-        self.assertTrue(
-            all(
-                isinstance(x, (float, np.floating))
-                for x in analysis_outputs_dict["auc_ci"]
-            )
-        )
 
+        # List of floats fields
+        self.assertIsListOfFloats(analysis_outputs_dict["eps_fpr_lb"])
+        self.assertIsListOfFloats(analysis_outputs_dict["eps_fpr_ub"])
+        self.assertIsListOfFloats(analysis_outputs_dict["eps_tpr_lb"])
+        self.assertIsListOfFloats(analysis_outputs_dict["eps_tpr_ub"])
+        self.assertIsListOfFloats(analysis_outputs_dict["eps_max_lb"])
+        self.assertIsListOfFloats(analysis_outputs_dict["eps_max_ub"])
+
+        # Confidence intervals (list of 2 floats)
+        self.assertIsListOfFloatsWithLength(analysis_outputs_dict["accuracy_ci"], 2)
+        self.assertIsListOfFloatsWithLength(analysis_outputs_dict["auc_ci"], 2)
+
+        # Data size dictionary
         self.assertIsInstance(analysis_outputs_dict["data_size"], dict)
-        self.assertTrue(
-            {"train_size", "test_size", "bootstrap_size"}.issubset(
-                analysis_outputs_dict["data_size"]
-            )
+        self.assertAllKeysPresent(
+            analysis_outputs_dict["data_size"],
+            ["train_size", "test_size", "bootstrap_size"],
         )
         self.assertTrue(
             all(isinstance(x, int) for x in analysis_outputs_dict["data_size"].values())
