@@ -12,7 +12,7 @@
 # pyre-strict
 
 import unittest
-from typing import Tuple
+from typing import Any, Dict, List, Tuple
 
 import numpy as np
 import pandas as pd
@@ -22,6 +22,35 @@ class BaseTestAnalysisNode(unittest.TestCase):
     """
     Util test class which sets up common dataframes for use in testing.
     """
+
+    def assertIsListOfFloats(self, value: Any, msg: str = "") -> None:
+        """Assert that value is a list containing only float or np.floating elements."""
+        self.assertIsInstance(value, list, msg or "Expected a list")
+        self.assertTrue(
+            all(isinstance(x, (float, np.floating)) for x in value),
+            msg
+            or f"Expected all elements to be float, got types: {[type(x).__name__ for x in value]}",
+        )
+
+    def assertIsListOfFloatsWithLength(
+        self, value: Any, expected_length: int, msg: str = ""
+    ) -> None:
+        """Assert that value is a list of floats with a specific length."""
+        self.assertIsListOfFloats(value, msg)
+        self.assertEqual(
+            len(value),
+            expected_length,
+            msg or f"Expected list of length {expected_length}, got {len(value)}",
+        )
+
+    def assertAllKeysPresent(
+        self, d: Dict[str, Any], keys: List[str], msg: str = ""
+    ) -> None:
+        """Assert that all specified keys are present in dictionary."""
+        self.assertTrue(
+            set(keys).issubset(d.keys()),
+            msg or f"Missing keys: {set(keys) - set(d.keys())}",
+        )
 
     def sample_normal_distribution(
         self, mean: float = 0.0, std_dev: float = 1.0, num_samples: int = 20000
