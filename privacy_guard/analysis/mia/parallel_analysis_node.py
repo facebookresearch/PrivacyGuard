@@ -73,7 +73,7 @@ class ParallelAnalysisNode(AnalysisNode):
         self._eps_computation_tasks_num = eps_computation_tasks_num
 
     def _compute_metrics_array(
-        self, args: tuple[str, str, float, int]
+        self, args: tuple[str, str, int]
     ) -> list[tuple[float, float, list[float], list[float], list[float]]]:
         """
         Make a tuple with two lists:
@@ -84,12 +84,12 @@ class ParallelAnalysisNode(AnalysisNode):
         -- A list of epsilons at error thresholds
 
         Args:
-            A tuple of train/test filenames, delta, and chunk size (number of bootstrap resampling times)
+            A tuple of train/test filenames and chunk size (number of bootstrap resampling times)
         Returns:
             A List with elements (accuracy, auc_value, eps_fpr_array, eps_tpr_array, eps_max_array)
         """
 
-        train_filename, test_filename, delta, chunk_size = args
+        train_filename, test_filename, chunk_size = args
         loss_train: torch.Tensor = torch.load(train_filename, weights_only=True)
         loss_test: torch.Tensor = torch.load(test_filename, weights_only=True)
         train_size, test_size = loss_train.shape[0], loss_test.shape[0]
@@ -148,7 +148,7 @@ class ParallelAnalysisNode(AnalysisNode):
         Computes analysis outputs based on the input dataframes.
         Overrides "BaseAnalysisNode::run_analysis"
 
-        First, makes loss_train and loss_test and computes one off metrics like psilon confidence intervals.
+        First, makes loss_train and loss_test and computes one off metrics like epsilon confidence intervals.
 
         Then, uses "make_metrics_array" to build lists of
         metrics, each computed from random subsets of
@@ -164,7 +164,7 @@ class ParallelAnalysisNode(AnalysisNode):
             "eps_fpr_max_lb", "eps_fpr_lb", "eps_fpr_ub": epsilon at various false positive rate:
             "eps_tpr_lb", "eps_tpr_ub": epsilon at various true positive rates
             "eps_max_lb", "eps_max_ub": max of epsilon at various true positive rates and false positive rates
-            "eps_ci": epsilon calculate with Clopper-Pearson confidence interval
+            "eps_cp": epsilon calculated with Clopper-Pearson confidence interval
             "accuracy", "accuracy_ci": accuracy values
             "auc", "auc_ci": area under ROC curve values
             "data_size": dictionary with keys "train_size", "test_size", "bootstrap_size"
@@ -198,7 +198,6 @@ class ParallelAnalysisNode(AnalysisNode):
                             (
                                 train_filename,
                                 test_filename,
-                                self._delta,
                                 chunk_size,
                             )
                             for chunk_size in chunk_sizes
