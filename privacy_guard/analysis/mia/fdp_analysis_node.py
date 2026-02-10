@@ -23,7 +23,7 @@ from scipy.stats import norm
 @dataclass
 class FDPAnalysisNodeOutput(BaseAnalysisOutput):
     """
-    A dataclass to encapsulate the outputs of FDPAnalsyisNode.
+    A dataclass to encapsulate the outputs of FDPAnalysisNode.
     Attributes:
         eps (float): Epsilon value
     """
