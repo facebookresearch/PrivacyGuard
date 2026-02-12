@@ -41,6 +41,10 @@ dependencies = [
     'later',
     'torchvision',
     'matplotlib',
+    'tree-sitter',
+    'tree-sitter-python',
+    'tree-sitter-cpp',
+    'zss',
 ]
 
 [project.optional-dependencies]
