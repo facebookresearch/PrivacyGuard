@@ -1,16 +1,4 @@
-# Copyright (c) Meta Platforms, Inc. and affiliates.
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#     http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
+# (c) Meta Platforms, Inc. and affiliates. Confidential and proprietary.
 
 # pyre-strict
 
@@ -525,3 +513,274 @@ class TestRmiaAttack(unittest.TestCase):
 
         self.assertIn("No membership columns found", str(context.exception))
         self.assertIn("member_ref_", str(context.exception))
+
+    # ===== Online RMIA Tests =====
+
+    def test_initialization_online_mode(self) -> None:
+        """Test that online flag is correctly stored during initialization"""
+        # Test offline mode (default)
+        attack_offline = RmiaAttack(
+            df_train_merge=self.df_train_merge,
+            df_test_merge=self.df_test_merge,
+            df_population=self.df_population,
+            row_aggregation=AggregationType.MAX,
+            num_reference_models=2,
+            online=False,
+        )
+        self.assertFalse(attack_offline.online)
+
+        # Test online mode
+        attack_online = RmiaAttack(
+            df_train_merge=self.df_train_merge,
+            df_test_merge=self.df_test_merge,
+            df_population=self.df_population,
+            row_aggregation=AggregationType.MAX,
+            num_reference_models=2,
+            online=True,
+        )
+        self.assertTrue(attack_online.online)
+        self.assertFalse(attack_online.enable_auto_tuning)
+
+    def test_initialization_online_with_auto_tuning_warns(self) -> None:
+        """Test that online mode with auto-tuning logs a warning and disables auto-tuning"""
+        with self.assertLogs(
+            "privacy_guard.attacks.rmia_attack", level="WARNING"
+        ) as cm:
+            attack = RmiaAttack(
+                df_train_merge=self.df_train_merge,
+                df_test_merge=self.df_test_merge,
+                df_population=self.df_population,
+                row_aggregation=AggregationType.MAX,
+                num_reference_models=2,
+                enable_auto_tuning=True,
+                online=True,
+            )
+
+        self.assertTrue(attack.online)
+        self.assertFalse(attack.enable_auto_tuning)
+        self.assertTrue(
+            any(
+                "Auto-tuning is not applicable in online mode" in msg
+                for msg in cm.output
+            )
+        )
+
+    def test_compute_ref_signal_averages_online(self) -> None:
+        """Test that online mode uses all signals without masking"""
+        ref_signals = np.array(
+            [
+                [0.4, 0.5, 0.3],
+                [0.3, 0.4, 0.5],
+                [0.5, 0.4, 0.6],
+            ]
+        )
+        ref_memberships = np.array(
+            [
+                [True, False, True],
+                [False, True, True],
+                [True, False, False],
+            ]
+        )
+
+        # Online mode should use all signals (ignore memberships)
+        result_online = RmiaAttack.compute_ref_signal_averages(
+            ref_signals=ref_signals,
+            ref_memberships=ref_memberships,
+            num_models=None,
+            alpha=0.3,
+            online=True,
+        )
+
+        # When num_models is None in online mode, it defaults to all models
+        # and returns all signals unchanged
+        self.assertEqual(result_online.shape, (3, 3))
+        assert_array_almost_equal(result_online, ref_signals)
+
+    def test_compute_ref_signal_averages_online_top_k(self) -> None:
+        """Test that online mode with num_models < total selects top-k signals"""
+        ref_signals = np.array(
+            [
+                [0.4, 0.5, 0.3],
+                [0.3, 0.4, 0.5],
+                [0.5, 0.4, 0.6],
+            ]
+        )
+        ref_memberships = np.array(
+            [
+                [True, False, True],
+                [False, True, True],
+                [True, False, False],
+            ]
+        )
+
+        result = RmiaAttack.compute_ref_signal_averages(
+            ref_signals=ref_signals,
+            ref_memberships=ref_memberships,
+            num_models=2,
+            alpha=0.3,
+            online=True,
+        )
+
+        # Should return top-2 signals per row
+        self.assertEqual(result.shape, (3, 2))
+
+        # Verify top-2 selection: for row 0 [0.4, 0.5, 0.3] -> top 2 = [0.4, 0.5]
+        expected_row0 = np.array([0.4, 0.5])
+        assert_array_almost_equal(result[0], expected_row0)
+
+    def test_compute_ref_signal_averages_online_vs_offline_different(self) -> None:
+        """Test that online and offline modes produce different results when memberships exist"""
+        ref_signals = np.array(
+            [
+                [0.4, 0.5, 0.3],
+                [0.3, 0.4, 0.5],
+            ]
+        )
+        ref_memberships = np.array(
+            [
+                [True, False, True],
+                [False, True, False],
+            ]
+        )
+
+        result_online = RmiaAttack.compute_ref_signal_averages(
+            ref_signals=ref_signals,
+            ref_memberships=ref_memberships,
+            num_models=2,
+            alpha=0.3,
+            online=True,
+        )
+
+        result_offline = RmiaAttack.compute_ref_signal_averages(
+            ref_signals=ref_signals,
+            ref_memberships=ref_memberships,
+            num_models=2,
+            alpha=0.3,
+            online=False,
+        )
+
+        # Results should differ because online uses all signals, offline masks IN signals
+        self.assertFalse(np.allclose(result_online, result_offline))
+
+    def test_compute_membership_scores_online(self) -> None:
+        """Test that online membership scores are in valid range"""
+        target_scores = np.array([0.8, 0.2])
+        ref_scores = np.array([[0.4, 0.5], [0.6, 0.5]])
+        ref_memberships = np.array([[True, False], [False, True]])
+        population_target_scores = np.array([0.5, 0.6])
+        population_ref_scores = np.array([[0.4, 0.5], [0.5, 0.4]])
+
+        scores = self.rmia_attack._compute_membership_scores(
+            target_scores=target_scores,
+            ref_scores=ref_scores,
+            ref_memberships=ref_memberships,
+            population_target_scores=population_target_scores,
+            population_ref_scores=population_ref_scores,
+            alpha=0.3,
+            num_models=2,
+            online=True,
+        )
+
+        # Verify output shape and valid range
+        self.assertEqual(scores.shape, (2,))
+        self.assertTrue(np.all(scores >= 0))
+        self.assertTrue(np.all(scores <= 1))
+
+    def test_run_attack_online_success(self) -> None:
+        """Test successful execution of online RMIA attack"""
+        attack = RmiaAttack(
+            df_train_merge=self.df_train_merge,
+            df_test_merge=self.df_test_merge,
+            df_population=self.df_population,
+            row_aggregation=AggregationType.MAX,
+            num_reference_models=2,
+            online=True,
+        )
+        analysis_input = attack.run_attack()
+
+        # Verify return type
+        self.assertIsInstance(analysis_input, AggregateAnalysisInput)
+
+        # Verify output dataframes have scores
+        self.assertIn("score", analysis_input.df_train_merge.columns)
+        self.assertIn("score", analysis_input.df_test_merge.columns)
+
+        # Verify output lengths match input
+        self.assertEqual(len(analysis_input.df_train_merge), len(self.df_train_merge))
+        self.assertEqual(len(analysis_input.df_test_merge), len(self.df_test_merge))
+
+        # Verify scores are numeric and in reasonable range
+        train_scores = analysis_input.df_train_merge["score"].values
+        test_scores = analysis_input.df_test_merge["score"].values
+
+        self.assertTrue(np.all(train_scores >= 0))
+        self.assertTrue(np.all(train_scores <= 1))
+        self.assertTrue(np.all(test_scores >= 0))
+        self.assertTrue(np.all(test_scores <= 1))
+
+    def test_run_attack_online_vs_offline_different_scores(self) -> None:
+        """Test that online and offline modes produce different scores"""
+        # Run offline attack
+        offline_attack = RmiaAttack(
+            df_train_merge=self.df_train_merge,
+            df_test_merge=self.df_test_merge,
+            df_population=self.df_population,
+            row_aggregation=AggregationType.MAX,
+            alpha_coefficient=0.3,
+            num_reference_models=2,
+            online=False,
+        )
+        offline_result = offline_attack.run_attack()
+        offline_train_scores = offline_result.df_train_merge["score"].values
+
+        # Run online attack
+        online_attack = RmiaAttack(
+            df_train_merge=self.df_train_merge,
+            df_test_merge=self.df_test_merge,
+            df_population=self.df_population,
+            row_aggregation=AggregationType.MAX,
+            alpha_coefficient=0.3,
+            num_reference_models=2,
+            online=True,
+        )
+        online_result = online_attack.run_attack()
+        online_train_scores = online_result.df_train_merge["score"].values
+
+        # Scores should differ between online and offline modes
+        self.assertFalse(
+            np.allclose(offline_train_scores, online_train_scores),
+            "Online and offline scores should be different",
+        )
+
+    def test_run_attack_online_determinism(self) -> None:
+        """Test that online attack produces deterministic results"""
+        attack_1 = RmiaAttack(
+            df_train_merge=self.df_train_merge,
+            df_test_merge=self.df_test_merge,
+            df_population=self.df_population,
+            row_aggregation=AggregationType.MAX,
+            num_reference_models=2,
+            online=True,
+        )
+        result_1 = attack_1.run_attack()
+
+        attack_2 = RmiaAttack(
+            df_train_merge=self.df_train_merge,
+            df_test_merge=self.df_test_merge,
+            df_population=self.df_population,
+            row_aggregation=AggregationType.MAX,
+            num_reference_models=2,
+            online=True,
+        )
+        result_2 = attack_2.run_attack()
+
+        assert_array_almost_equal(
+            result_1.df_train_merge["score"].values,
+            result_2.df_train_merge["score"].values,
+            decimal=10,
+        )
+        assert_array_almost_equal(
+            result_1.df_test_merge["score"].values,
+            result_2.df_test_merge["score"].values,
+            decimal=10,
+        )
