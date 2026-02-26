@@ -450,43 +450,6 @@ class TestAnalysisNode(BaseTestAnalysisNode):
         )
         self.assertAlmostEqual(outputs_false["auc"], outputs_true["auc"], places=10)
 
-    def test_get_tpr_index_none_target(self) -> None:
-        """Test that _get_tpr_index returns 0 when tpr_target is None (legacy behavior)."""
-        analysis_node = AnalysisNode(
-            analysis_input=self.analysis_input,
-            delta=0.000001,
-            n_users_for_eval=100,
-            num_bootstrap_resampling_times=10,
-            tpr_target=None,
-        )
-        self.assertEqual(analysis_node._get_tpr_index(), 0)
-
-    def test_get_tpr_index_with_target(self) -> None:
-        """Test that _get_tpr_index returns correct index that points to tpr_target."""
-        # Create error_thresholds array to get actual values
-        num_thresholds = int((1.0 - 0.01) / 0.0025) + 1
-        error_thresholds = np.linspace(0.01, 1.0, num_thresholds)
-
-        # Test with actual values from the array at various indices
-        test_indices = [0, 6, 36, 196, num_thresholds - 1]
-
-        for idx in test_indices:
-            tpr_target = error_thresholds[idx]
-            analysis_node = AnalysisNode(
-                analysis_input=self.analysis_input,
-                delta=0.000001,
-                n_users_for_eval=100,
-                num_bootstrap_resampling_times=10,
-                tpr_target=tpr_target,
-                tpr_threshold_width=0.0025,
-            )
-            tpr_idx = analysis_node._get_tpr_index()
-            self.assertEqual(
-                tpr_idx,
-                idx,
-                msg=f"tpr_target={tpr_target}: expected index {idx}, got {tpr_idx}",
-            )
-
     def test_tpr_threshold_width_positive_validation(self) -> None:
         """Test that tpr_threshold_width must be positive."""
         with self.assertRaisesRegex(ValueError, "must be positive"):
@@ -538,28 +501,17 @@ class TestAnalysisNode(BaseTestAnalysisNode):
                 tpr_target=1.5,
             )
 
-    def test_error_thresholds_array_creation(self) -> None:
-        """Test that _error_thresholds array is correctly created."""
-        # Legacy mode: 100 thresholds
-        analysis_node_legacy = AnalysisNode(
-            analysis_input=self.analysis_input,
-            delta=0.000001,
-            n_users_for_eval=100,
-            num_bootstrap_resampling_times=10,
-            tpr_target=None,
-        )
-        self.assertEqual(len(analysis_node_legacy._error_thresholds), 100)
+    def test_get_tpr_index(self) -> None:
+        with self.subTest("none_target"):
+            self.assertEqual(AnalysisNode.get_tpr_index(None), 0)
 
-        # Fine-grained mode
-        analysis_node_fine = AnalysisNode(
-            analysis_input=self.analysis_input,
-            delta=0.000001,
-            n_users_for_eval=100,
-            num_bootstrap_resampling_times=10,
-            tpr_target=0.01,
-            tpr_threshold_width=0.0025,
-        )
-        expected_num_thresholds = int(0.99 / 0.0025) + 1
-        self.assertEqual(
-            len(analysis_node_fine._error_thresholds), expected_num_thresholds
-        )
+        with self.subTest("arbitrary_float"):
+            num_thresholds = int((1.0 - 0.01) / 0.0025) + 1
+            error_thresholds = np.linspace(0.01, 1.0, num_thresholds)
+            for target in [0.03, 0.06, 0.07, 0.15, 0.5]:
+                idx = AnalysisNode.get_tpr_index(target)
+                self.assertAlmostEqual(error_thresholds[idx], target, places=5)
+
+        with self.subTest("misaligned_target"):
+            with self.assertRaises(ValueError):
+                AnalysisNode.get_tpr_index(0.0115)

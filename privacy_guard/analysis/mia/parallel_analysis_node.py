@@ -226,7 +226,9 @@ class ParallelAnalysisNode(AnalysisNode):
 
         eps_tpr_boundary = eps_tpr_ub if self._use_upper_bound else eps_tpr_lb
 
-        tpr_idx = self._get_tpr_index()
+        tpr_idx = AnalysisNode.get_tpr_index(
+            self._tpr_target, self._tpr_threshold_width
+        )
         outputs = AnalysisNodeOutput(
             eps=eps_tpr_boundary[tpr_idx],  # epsilon at specified TPR threshold
             eps_lb=eps_tpr_lb[tpr_idx],

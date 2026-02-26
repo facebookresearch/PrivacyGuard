@@ -175,11 +175,36 @@ class AnalysisNode(BaseAnalysisNode):
 
         super().__init__(analysis_input=analysis_input)
 
-    def _get_tpr_index(self) -> int:
-        """Convert TPR target to array index."""
-        if self._tpr_target is None:
-            return 0  # Legacy behavior: TPR = 1% is at index 0
-        return int(np.where(self._error_thresholds == self._tpr_target)[0][0])
+    @staticmethod
+    def get_tpr_index(
+        tpr_target: float | None,
+        tpr_threshold_width: float = 0.0025,
+    ) -> int:
+        """
+        Convert TPR target to array index in the error_thresholds grid.
+
+        Uses np.isclose to handle floating-point precision issues with np.linspace.
+        Raises ValueError if tpr_target does not align with the threshold grid.
+
+        Args:
+            tpr_target: Target TPR value. If None, returns 0 (legacy behavior).
+            tpr_threshold_width: Width between TPR thresholds.
+
+        Returns:
+            Index into the error_thresholds array.
+        """
+        if tpr_target is None:
+            return 0
+        num_thresholds = int((1.0 - 0.01) / tpr_threshold_width) + 1
+        error_thresholds = np.linspace(0.01, 1.0, num_thresholds)
+        matches = np.where(np.isclose(error_thresholds, tpr_target))[0]
+        if len(matches) > 0:
+            return int(matches[0])
+        raise ValueError(
+            f"tpr_target={tpr_target} does not align with the error_thresholds array. "
+            f"Nearest value is {error_thresholds[np.argmin(np.abs(error_thresholds - tpr_target))]}. "
+            f"Adjust tpr_target and tpr_threshold_width so that tpr_target falls on the threshold grid."
+        )
 
     def _calculate_one_off_eps(self) -> float:
         df_train_user = self.analysis_input.df_train_user
@@ -308,7 +333,9 @@ class AnalysisNode(BaseAnalysisNode):
 
         eps_tpr_boundary = eps_tpr_ub if self._use_upper_bound else eps_tpr_lb
 
-        tpr_idx = self._get_tpr_index()
+        tpr_idx = AnalysisNode.get_tpr_index(
+            self._tpr_target, self._tpr_threshold_width
+        )
         outputs = AnalysisNodeOutput(
             eps=eps_tpr_boundary[tpr_idx],  # epsilon at specified TPR threshold
             eps_lb=eps_tpr_lb[tpr_idx],
