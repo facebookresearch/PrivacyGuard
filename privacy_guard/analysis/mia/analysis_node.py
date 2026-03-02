@@ -56,9 +56,13 @@ class AnalysisNodeOutput(BaseAnalysisOutput):
         tpr_target (float): Target TPR used for computing epsilon.
     """
 
-    # Empirical epsilons
+    # Empirical epsilons and AUC
     eps: float
     eps_lb: float
+    auc: float
+    auc_ci: List[float]
+
+    # Other results
     eps_fpr_max_ub: float
     eps_fpr_lb: List[float]
     eps_fpr_ub: List[float]
@@ -67,11 +71,9 @@ class AnalysisNodeOutput(BaseAnalysisOutput):
     eps_max_lb: List[float]
     eps_max_ub: List[float]
     eps_cp: float
-    # Accuracy and AUC
+    # Accuracy
     accuracy: float
     accuracy_ci: List[float]
-    auc: float
-    auc_ci: List[float]
     # Dataset sizes
     data_size: dict[str, int]
     # TPR target and index (only set when custom tpr_target is provided)
