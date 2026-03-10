@@ -16,10 +16,12 @@ Tests for the dataset module in shadow_model_training.
 
 import unittest
 
+import numpy as np
 import torch
 from privacy_guard.shadow_model_training.dataset import (
     create_rmia_datasets,
     create_shadow_datasets,
+    CustomDataset,
     get_cifar10_transforms,
 )
 from torch.utils.data import Dataset
@@ -144,6 +146,59 @@ class TestDataset(unittest.TestCase):
 
         with self.assertRaises(AssertionError):
             create_rmia_datasets(train_dataset, test_dataset, num_references=2)
+
+
+class TestCustomDataset(unittest.TestCase):
+    """Test cases for the CustomDataset class."""
+
+    def test_construction_and_properties(self) -> None:
+        """Test creation from numpy/tensors and num_classes/input_shape."""
+        # From numpy arrays
+        data_np = np.random.randn(100, 10).astype(np.float32)
+        targets_np = np.array([0, 1, 2, 3, 4] * 20)
+        ds = CustomDataset(data_np, targets_np)
+        self.assertEqual(len(ds), 100)
+        self.assertEqual(ds.num_classes, 5)
+        self.assertEqual(ds.input_shape, torch.Size([10]))
+        sample, label = ds[0]
+        self.assertIsInstance(sample, torch.Tensor)
+        self.assertIsInstance(label, torch.Tensor)
+
+        # From torch tensors with image-like shape
+        ds2 = CustomDataset(torch.randn(50, 3, 32, 32), torch.randint(0, 5, (50,)))
+        self.assertEqual(len(ds2), 50)
+        self.assertEqual(ds2.input_shape, torch.Size([3, 32, 32]))
+
+    def test_validation_errors(self) -> None:
+        """Test that invalid inputs raise ValueError."""
+        with self.assertRaises(ValueError):
+            CustomDataset(
+                np.zeros((100, 10), dtype=np.float32), np.zeros(50, dtype=np.int64)
+            )
+        with self.assertRaises(ValueError):
+            CustomDataset(
+                np.zeros((0, 10), dtype=np.float32), np.array([], dtype=np.int64)
+            )
+
+    def test_transform_and_shadow_integration(self) -> None:
+        """Test transforms and compatibility with create_shadow_datasets."""
+        data = np.random.randn(200, 10).astype(np.float32)
+        targets = np.random.randint(0, 3, size=200)
+        transform_called: list[bool] = [False]
+
+        def my_transform(x: torch.Tensor) -> torch.Tensor:
+            transform_called[0] = True
+            return x * 2.0
+
+        dataset = CustomDataset(data, targets, transform=my_transform)
+        dataset[0]
+        self.assertTrue(transform_called[0])
+
+        shadow_datasets, target_dataset = create_shadow_datasets(
+            dataset, n_shadows=4, pkeep=0.5, seed=42
+        )
+        self.assertEqual(len(shadow_datasets), 3)
+        self.assertIsInstance(target_dataset, tuple)
 
 
 if __name__ == "__main__":

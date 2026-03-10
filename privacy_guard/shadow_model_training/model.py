@@ -16,6 +16,8 @@ Model definitions for shadow model training.
 This module provides neural network model definitions for privacy attack experiments.
 """
 
+from typing import List, Optional
+
 import torch
 import torch.nn as nn
 
@@ -92,12 +94,14 @@ class DeepCNN(nn.Module):
     Architecture inspired by ResNet.
     """
 
-    def __init__(self, num_classes: int = 10) -> None:
+    def __init__(self, num_classes: int = 10, input_channels: int = 3) -> None:
         super().__init__()
 
         # Initial feature extraction
         self.input_block: nn.Sequential = nn.Sequential(
-            nn.Conv2d(3, 64, kernel_size=3, stride=1, padding=1, bias=False),
+            nn.Conv2d(
+                input_channels, 64, kernel_size=3, stride=1, padding=1, bias=False
+            ),
             nn.BatchNorm2d(64),
             nn.ReLU(inplace=True),
         )
@@ -176,6 +180,92 @@ class DeepCNN(nn.Module):
         return x
 
 
-def create_model() -> DeepCNN:
-    """Create a deep CNN model for CIFAR-10 classification."""
-    return DeepCNN(num_classes=10)
+class SimpleMLP(nn.Module):
+    """A simple multi-layer perceptron for tabular/flat data.
+
+    Suitable for use with CustomDataset when the data is not image-like
+    (e.g., tabular features, embeddings).
+
+    Args:
+        input_dim: Number of input features.
+        num_classes: Number of output classes.
+        hidden_dims: List of hidden layer sizes. Defaults to [256, 128].
+    """
+
+    def __init__(
+        self,
+        input_dim: int,
+        num_classes: int,
+        hidden_dims: Optional[List[int]] = None,
+    ) -> None:
+        super().__init__()
+
+        if hidden_dims is None:
+            hidden_dims = [256, 128]
+
+        layers: List[nn.Module] = []
+        prev_dim = input_dim
+        for hidden_dim in hidden_dims:
+            layers.extend(
+                [
+                    nn.Linear(prev_dim, hidden_dim),
+                    nn.ReLU(inplace=True),
+                    nn.BatchNorm1d(hidden_dim),
+                ]
+            )
+            prev_dim = hidden_dim
+
+        layers.append(nn.Linear(prev_dim, num_classes))
+        self.network: nn.Sequential = nn.Sequential(*layers)
+
+        self._initialize_weights()
+
+    def _initialize_weights(self) -> None:
+        """Initialize model weights."""
+        for m in self.modules():
+            if isinstance(m, nn.Linear):
+                nn.init.kaiming_normal_(m.weight, nonlinearity="relu")
+                if m.bias is not None:
+                    nn.init.constant_(m.bias, 0)
+            elif isinstance(m, nn.BatchNorm1d):
+                nn.init.constant_(m.weight, 1)
+                nn.init.constant_(m.bias, 0)
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        x = torch.flatten(x, 1)
+        return self.network(x)
+
+
+def create_model(num_classes: int = 10, input_channels: int = 3) -> DeepCNN:
+    """Create a deep CNN model for image classification.
+
+    Args:
+        num_classes: Number of output classes.
+        input_channels: Number of input channels (e.g., 3 for RGB, 1 for grayscale).
+
+    Returns:
+        A DeepCNN model instance.
+    """
+    return DeepCNN(num_classes=num_classes, input_channels=input_channels)
+
+
+def create_mlp_model(
+    input_dim: int,
+    num_classes: int,
+    hidden_dims: Optional[List[int]] = None,
+) -> SimpleMLP:
+    """Create an MLP model for tabular/flat data classification.
+
+    Args:
+        input_dim: Number of input features.
+        num_classes: Number of output classes.
+        hidden_dims: List of hidden layer sizes. Defaults to [256, 128].
+
+    Returns:
+        A SimpleMLP model instance.
+    """
+    return SimpleMLP(
+        input_dim=input_dim,
+        num_classes=num_classes,
+        hidden_dims=hidden_dims,
+    )

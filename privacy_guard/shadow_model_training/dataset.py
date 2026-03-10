@@ -18,9 +18,10 @@ for privacy attack experiments.
 """
 
 from pathlib import Path
-from typing import cast, List, Optional, Protocol, Sequence, Tuple, TypeVar
+from typing import cast, List, Optional, Protocol, Sequence, Tuple, TypeVar, Union
 
 import numpy as np
+import torch
 from torch.utils.data import Dataset, Subset
 from torchvision import transforms
 from torchvision.datasets import CIFAR10
@@ -36,6 +37,81 @@ class SizedDataset(Protocol):
 
 T: TypeVar = TypeVar("T")
 DatasetT: TypeVar = TypeVar("DatasetT", bound=Dataset)
+
+
+class CustomDataset(Dataset):
+    """A general-purpose dataset wrapper for user-provided data.
+
+    Wraps numpy arrays or PyTorch tensors into a PyTorch Dataset that is
+    compatible with the PrivacyGuard pipeline (shadow model training,
+    membership inference attacks, etc.).
+
+    Args:
+        data: Feature data as a numpy array or PyTorch tensor.
+              Shape should be (n_samples, ...) where ... represents
+              any feature dimensions (e.g., (n, d) for tabular data
+              or (n, c, h, w) for images).
+        targets: Labels as a numpy array or PyTorch tensor.
+                 Shape should be (n_samples,).
+        transform: Optional callable applied to each data sample
+                   when __getitem__ is called.
+
+    Example:
+        >>> import numpy as np
+        >>> X = np.random.randn(1000, 10).astype(np.float32)
+        >>> y = np.random.randint(0, 3, size=1000)
+        >>> dataset = CustomDataset(X, y)
+        >>> data, label = dataset[0]
+    """
+
+    def __init__(
+        self,
+        data: Union[np.ndarray, torch.Tensor],
+        targets: Union[np.ndarray, torch.Tensor],
+        transform: Optional[object] = None,
+    ) -> None:
+        if isinstance(data, np.ndarray):
+            self.data: torch.Tensor = torch.from_numpy(data)
+        else:
+            self.data = data
+
+        if isinstance(targets, np.ndarray):
+            self.targets: torch.Tensor = torch.from_numpy(targets).long()
+        else:
+            self.targets = targets.long()
+
+        if len(self.data) != len(self.targets):
+            raise ValueError(
+                f"data and targets must have the same length, "
+                f"got {len(self.data)} and {len(self.targets)}"
+            )
+
+        if len(self.data) == 0:
+            raise ValueError("data must not be empty")
+
+        self.transform = transform
+
+    def __len__(self) -> int:
+        return len(self.data)
+
+    def __getitem__(self, index: int) -> Tuple[torch.Tensor, torch.Tensor]:
+        sample = self.data[index]
+        target = self.targets[index]
+
+        if self.transform is not None and callable(self.transform):
+            sample = self.transform(sample)
+
+        return cast(torch.Tensor, sample), target
+
+    @property
+    def num_classes(self) -> int:
+        """Return the number of unique classes in the dataset."""
+        return int(self.targets.unique().numel())
+
+    @property
+    def input_shape(self) -> torch.Size:
+        """Return the shape of a single data sample (excluding batch dim)."""
+        return self.data.shape[1:]
 
 
 def get_cifar10_transforms() -> Tuple[transforms.Compose, transforms.Compose]:

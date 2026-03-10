@@ -18,9 +18,11 @@ import unittest
 
 import torch
 from privacy_guard.shadow_model_training.model import (
+    create_mlp_model,
     create_model,
     DeepCNN,
     ResidualUnit,
+    SimpleMLP,
 )
 
 
@@ -53,6 +55,41 @@ class TestModel(unittest.TestCase):
         model = create_model()
         self.assertIsInstance(model, DeepCNN)
         self.assertEqual(model.classifier.out_features, 10)
+
+    def test_create_model_custom_classes(self) -> None:
+        """Test that create_model accepts custom num_classes."""
+        model = create_model(num_classes=5)
+        self.assertIsInstance(model, DeepCNN)
+        self.assertEqual(model.classifier.out_features, 5)
+
+    def test_deep_cnn_custom_input_channels(self) -> None:
+        """Test DeepCNN with custom input channels."""
+        model = DeepCNN(num_classes=3, input_channels=1)
+        x = torch.randn(2, 1, 32, 32)
+        y = model(x)
+        self.assertEqual(y.shape, (2, 3))
+
+    def test_simple_mlp(self) -> None:
+        """Test that SimpleMLP forward pass works."""
+        model = SimpleMLP(input_dim=20, num_classes=5)
+        x = torch.randn(4, 20)
+        y = model(x)
+        self.assertEqual(y.shape, (4, 5))
+
+    def test_simple_mlp_custom_hidden(self) -> None:
+        """Test SimpleMLP with custom hidden dimensions."""
+        model = SimpleMLP(input_dim=50, num_classes=3, hidden_dims=[64, 32, 16])
+        x = torch.randn(4, 50)
+        y = model(x)
+        self.assertEqual(y.shape, (4, 3))
+
+    def test_create_mlp_model(self) -> None:
+        """Test that create_mlp_model returns a SimpleMLP instance."""
+        model = create_mlp_model(input_dim=10, num_classes=4)
+        self.assertIsInstance(model, SimpleMLP)
+        x = torch.randn(2, 10)
+        y = model(x)
+        self.assertEqual(y.shape, (2, 4))
 
 
 if __name__ == "__main__":
