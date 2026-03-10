@@ -13,17 +13,19 @@
 # limitations under the License.
 
 # pyre-strict
+import logging
 from typing import Tuple, Union
 
 import pandas as pd
 from pandas import Series
-from privacy_guard.analysis.base_analysis_input import BaseAnalysisInput
 from privacy_guard.analysis.mia.aggregate_analysis_input import (
     AggregateAnalysisInput,
     AggregationType,
 )
 from privacy_guard.attacks.base_attack import BaseAttack
 from scipy.stats import norm
+
+logger: logging.Logger = logging.getLogger(__name__)
 
 
 class LiraAttack(BaseAttack):
@@ -162,7 +164,7 @@ class LiraAttack(BaseAttack):
                 raise ValueError(f"{self.std_dev_type} is not a valid std_dev type.")
         return std_in, std_out
 
-    def run_attack(self) -> BaseAnalysisInput:
+    def run_attack(self) -> AggregateAnalysisInput:
         """
         Run lira attack on the shadows and original models.
 
@@ -206,6 +208,15 @@ class LiraAttack(BaseAttack):
             self.df_test_merge["score"] = norm.logpdf(
                 self.df_test_merge.score_orig, self.df_test_merge.score_mean, std_out
             )
+
+        logger.info(
+            f"before NaN removal for logpdf results: train {self.df_train_merge.shape} and test {self.df_test_merge.shape}"
+        )
+        self.df_train_merge = self.df_train_merge.dropna(subset=["score"])
+        self.df_test_merge = self.df_test_merge.dropna(subset=["score"])
+        logger.info(
+            f"after NaN removal for logpdf results: train {self.df_train_merge.shape} and test {self.df_test_merge.shape}"
+        )
 
         if not (self.online_attack or self.offline_shadows_evals_in):
             # this corresponds to the case of offline shadows evals on the hold out test set
