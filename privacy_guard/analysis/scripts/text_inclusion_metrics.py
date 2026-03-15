@@ -201,7 +201,7 @@ def main() -> None:
     )
     parser.add_argument(
         "--output_path",
-        help="Path of file to export argumneted datasets",
+        help="Path of file to export augmented datasets",
         required=True,
     )
     parser.add_argument(
