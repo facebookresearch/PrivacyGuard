@@ -16,7 +16,7 @@
 
 import logging
 from dataclasses import dataclass
-from typing import List, Tuple
+from typing import Callable, List, Tuple
 
 import numpy as np
 import torch
@@ -72,7 +72,34 @@ class LIAAnalysisNode(AnalysisNode):
         with_timer: bool = False,
         power: float = 0.0,
         use_fnr_and_tnr: bool = False,
+        score_computation_function: Callable[
+            [np.ndarray, np.ndarray, np.ndarray],
+            np.ndarray,
+        ]
+        | None = None,
     ) -> None:
+        """
+        Args:
+            analysis_input: LIA analysis input data
+            delta: privacy parameter delta for epsilon computation
+            num_bootstrap_resampling_times: number of bootstrap samples for CI estimation
+            cap_eps: whether to cap epsilon at a finite upper bound
+            show_progress: whether to show a progress bar
+            with_timer: whether to record timing statistics
+            power: exponent applied to prob_diff_label in the score function
+            use_fnr_and_tnr: whether to use FNR/TNR in addition to FPR/TPR thresholds
+            score_computation_function: optional function to compute per-sample scores.
+                Signature: (received_labels, y1_probs, predictions) -> scores
+                    received_labels: labels received by the adversary,
+                        np.ndarray of shape (num_samples,)
+                    y1_probs: predictions used for generating synthetic labels y1,
+                        np.ndarray of shape (num_samples,)
+                    predictions: target model predictions,
+                        np.ndarray of shape (num_samples,)
+                Returns np.ndarray of shape (num_samples,).
+                The train/test split is applied after this function returns.
+                If None, uses the default log-likelihood ratio score.
+        """
         if power < 0:
             raise ValueError("Power used for score function must be non-negative")
 
@@ -85,6 +112,7 @@ class LIAAnalysisNode(AnalysisNode):
         self._timer_stats: dict[str, float] = {}
         self._power = power
         self._use_fnr_and_tnr = use_fnr_and_tnr
+        self.score_computation_function = score_computation_function
 
     def compute_scores(self, i: int) -> Tuple[torch.Tensor, torch.Tensor]:
         """
@@ -97,20 +125,24 @@ class LIAAnalysisNode(AnalysisNode):
             Tuple[torch.Tensor, torch.Tensor]: scores for samples with training labels and reconstructed labels
         """
 
-        true_bits = self._analysis_input.true_bits[i]
-
         received_labels = self._analysis_input.received_labels[i]
         y1_probs = self._analysis_input.predictions_y1_generation
         predictions = self._analysis_input.predictions
 
-        prob_train = np.where(received_labels == 1, predictions, 1 - predictions)
-        prob_reconstruct = np.where(received_labels == 1, y1_probs, 1 - y1_probs)
-        prob_diff_label = np.where(received_labels == 1, 1 - y1_probs, y1_probs)
+        if self.score_computation_function is not None:
+            scores = self.score_computation_function(
+                received_labels, y1_probs, predictions
+            )
+        else:
+            prob_train = np.where(received_labels == 1, predictions, 1 - predictions)
+            prob_reconstruct = np.where(received_labels == 1, y1_probs, 1 - y1_probs)
+            prob_diff_label = np.where(received_labels == 1, 1 - y1_probs, y1_probs)
 
-        scores = (
-            np.log(prob_train + 1e-8) - np.log(prob_reconstruct + 1e-8)
-        ) * prob_diff_label**self._power
+            scores = (
+                np.log(prob_train + 1e-8) - np.log(prob_reconstruct + 1e-8)
+            ) * prob_diff_label**self._power
 
+        true_bits = self._analysis_input.true_bits[i]
         scores_train = torch.tensor(scores[true_bits == 0])
         scores_test = torch.tensor(scores[true_bits == 1])
 

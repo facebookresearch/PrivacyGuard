@@ -14,7 +14,7 @@
 
 # pyre-strict
 
-from typing import Dict, List
+from typing import Callable, Dict, List
 
 import numpy as np
 import pandas as pd
@@ -120,6 +120,8 @@ class LIAAttack(BaseAttack):
         attack_input: Dict[str, pd.DataFrame],
         row_aggregation: AggregationType,
         y1_generation: str = "calibration",
+        y1_generation_function: Callable[[np.ndarray, np.ndarray, int], np.ndarray]
+        | None = None,
         num_resampling_times: int = 100,
     ) -> None:
         """
@@ -127,12 +129,22 @@ class LIAAttack(BaseAttack):
             attack_input: dictionary containing dataframes for the attack, must contain keys "df_train_and_calib" and "df_aggregated"
             row_aggregation: specifies aggregation strategy for aggregating rows for each user
             y1_generation: strategy for generating the labels y1 (reconstructed labels)
+            y1_generation_function: optional function to generate synthetic y1 labels.
+                Signature: (predictions_y1_generation, labels, num_resampling_times) -> y1_labels
+                    predictions_y1_generation: predictions used for synthetic label generation,
+                        np.ndarray of shape (num_samples,)
+                    labels: true training labels (y0),
+                        np.ndarray of shape (num_samples,)
+                    num_resampling_times: number of independent resampling iterations, int
+                Returns np.ndarray of shape (num_resampling_times, num_samples).
+                If None, uses Binomial sampling from predictions_y1_generation.
             num_resampling_times: Number of times to instantiate the LIA game (for confidence interval estimation)
         """
         self.attack_input = attack_input
         self.row_aggregation = row_aggregation
         self.y1_generation = y1_generation
         self.num_resampling_times = num_resampling_times
+        self.y1_generation_function = y1_generation_function
 
     def get_y1_predictions(self, df_attack: pd.DataFrame) -> np.ndarray:
         """
@@ -177,6 +189,31 @@ class LIAAttack(BaseAttack):
 
         return predictions_y1_generation
 
+    def _generate_y1_labels(
+        self, predictions_y1_generation: np.ndarray, labels: np.ndarray
+    ) -> np.ndarray:
+        """
+        Generate y1 labels for the attack.
+        args:
+            predictions_y1_generation: predictions used for generating y1
+            labels: true labels from the attack dataframe
+        returns:
+            y1: y1 labels
+        """
+
+        if self.y1_generation_function is None:
+            # generate binary labels using Binomial distribution
+            random_floats = np.random.rand(
+                self.num_resampling_times, len(predictions_y1_generation)
+            )
+            y1_all_reps = (random_floats < predictions_y1_generation).astype(int)
+        else:
+            y1_all_reps = self.y1_generation_function(
+                predictions_y1_generation, labels, self.num_resampling_times
+            )
+
+        return y1_all_reps
+
     def run_attack(self) -> LIAAnalysisInput:
         """
         Run LIA attack.
@@ -189,12 +226,13 @@ class LIAAttack(BaseAttack):
 
         y0 = np.asarray(df_attack["label"].values)
         predictions = np.asarray(df_attack["predictions"].values)
-        predictions_y1_generation = np.asarray(self.get_y1_predictions(df_attack))
         true_bits_all_reps = np.random.randint(
             2, size=(self.num_resampling_times, len(df_attack))
         )
-        random_floats = np.random.rand(self.num_resampling_times, len(df_attack))
-        y1_all_reps = (random_floats < predictions_y1_generation).astype(int)
+        predictions_y1_generation = np.asarray(self.get_y1_predictions(df_attack))
+        y1_all_reps = self._generate_y1_labels(
+            predictions_y1_generation, df_attack["label"].values
+        )
         received_labels_all_reps = np.where(true_bits_all_reps == 0, y0, y1_all_reps)
 
         # Create analysis input object
