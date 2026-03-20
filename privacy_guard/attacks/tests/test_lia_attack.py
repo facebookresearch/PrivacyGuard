@@ -478,3 +478,96 @@ class TestLIAAttack(unittest.TestCase):
                     self.assertEqual(
                         analysis_input.received_labels[i, j], analysis_input.y1[i, j]
                     )
+
+    def test_y1_generation_function_is_called(self) -> None:
+        """Test that a provided y1_generation_function is used for label generation."""
+
+        def deterministic_y1_generation(
+            predictions_y1: np.ndarray,
+            labels: np.ndarray,
+            num_resampling_times: int,
+        ) -> np.ndarray:
+            """Return all-ones labels to verify the function is invoked."""
+            return np.ones((num_resampling_times, len(labels)), dtype=int)
+
+        lia_attack = LIAAttack(
+            attack_input=self.attack_input,
+            row_aggregation=AggregationType.MAX,
+            y1_generation="calibration",
+            y1_generation_function=deterministic_y1_generation,
+            num_resampling_times=5,
+        )
+
+        analysis_input = lia_attack.run_attack()
+
+        # All y1 values should be 1 since our function returns all-ones
+        self.assertTrue(np.all(analysis_input.y1 == 1))
+        self.assertEqual(
+            analysis_input.y1.shape, (5, len(self.attack_input["df_aggregated"]))
+        )
+
+    def test_y1_generation_function_receives_correct_args(self) -> None:
+        """Test that y1_generation_function receives correct arguments."""
+        captured_args: dict[str, object] = {}
+
+        def capturing_y1_generation(
+            predictions_y1: np.ndarray,
+            labels: np.ndarray,
+            num_resampling_times: int,
+        ) -> np.ndarray:
+            """Capture arguments for verification."""
+            captured_args["predictions_y1"] = predictions_y1
+            captured_args["labels"] = labels
+            captured_args["num_resampling_times"] = num_resampling_times
+            return np.zeros((num_resampling_times, len(labels)), dtype=int)
+
+        num_resampling = 7
+        lia_attack = LIAAttack(
+            attack_input=self.attack_input,
+            row_aggregation=AggregationType.MAX,
+            y1_generation="calibration",
+            y1_generation_function=capturing_y1_generation,
+            num_resampling_times=num_resampling,
+        )
+
+        df_attack = self.attack_input["df_aggregated"]
+        lia_attack.run_attack()
+
+        # Verify the function received the correct arguments
+        self.assertEqual(captured_args["num_resampling_times"], num_resampling)
+        assert_array_equal(
+            captured_args["predictions_y1"],
+            np.asarray(df_attack["predictions_calib"].values),
+        )
+        assert_array_equal(
+            captured_args["labels"],
+            df_attack["label"],
+        )
+
+    def test_default_y1_generation_function_is_none(self) -> None:
+        """Test that y1_generation_function defaults to None."""
+        lia_attack = LIAAttack(
+            attack_input=self.attack_input,
+            row_aggregation=AggregationType.MAX,
+        )
+
+        self.assertIsNone(lia_attack.y1_generation_function)
+
+    def test_generate_y1_labels_without_function(self) -> None:
+        """Test that _generate_y1_labels uses Binomial sampling when no function is provided."""
+        lia_attack = LIAAttack(
+            attack_input=self.attack_input,
+            row_aggregation=AggregationType.MAX,
+            y1_generation="calibration",
+            num_resampling_times=1000,
+        )
+
+        df_attack = self.attack_input["df_aggregated"]
+        predictions_y1 = np.asarray(lia_attack.get_y1_predictions(df_attack))
+        y1_all_reps = lia_attack._generate_y1_labels(
+            predictions_y1, df_attack["label"].values
+        )
+
+        # Should produce binary values
+        self.assertTrue(np.all(np.isin(y1_all_reps, [0, 1])))
+        self.assertEqual(y1_all_reps.shape, (1000, len(df_attack)))

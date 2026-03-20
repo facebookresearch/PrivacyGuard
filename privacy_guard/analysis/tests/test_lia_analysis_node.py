@@ -512,3 +512,98 @@ class TestLIAAnalysisNode(unittest.TestCase):
             places=10,
             msg="prediction_y1_generation_mean should match the mean of predictions_y1_generation",
         )
+
+    def test_score_computation_function_is_called(self) -> None:
+        """Test that a provided score_computation_function is used for score computation."""
+
+        def constant_scores(
+            received_labels: np.ndarray,
+            y1_probs: np.ndarray,
+            predictions: np.ndarray,
+        ) -> np.ndarray:
+            """Return constant scores to verify the function is invoked."""
+            return np.ones(len(received_labels)) * 42.0
+
+        analysis_node = LIAAnalysisNode(
+            analysis_input=self.analysis_input,
+            delta=1e-6,
+            num_bootstrap_resampling_times=2,
+            score_computation_function=constant_scores,
+        )
+
+        scores_train, scores_test = analysis_node.compute_scores(0)
+
+        # Verify the function's output is used and splitting is done correctly
+        expected_train_count = int(np.sum(self.true_bits[0] == 0))
+        expected_test_count = int(np.sum(self.true_bits[0] == 1))
+        self.assertEqual(scores_train.shape[0], expected_train_count)
+        self.assertEqual(scores_test.shape[0], expected_test_count)
+        self.assertTrue(torch.all(scores_train == 42.0))
+        self.assertTrue(torch.all(scores_test == 42.0))
+
+    def test_score_computation_function_receives_correct_args(self) -> None:
+        """Test that score_computation_function receives correct arguments."""
+        captured_args: dict[str, object] = {}
+
+        def capturing_scores(
+            received_labels: np.ndarray,
+            y1_probs: np.ndarray,
+            predictions: np.ndarray,
+        ) -> np.ndarray:
+            """Capture arguments for verification."""
+            captured_args["received_labels"] = received_labels
+            captured_args["y1_probs"] = y1_probs
+            captured_args["predictions"] = predictions
+            return np.zeros(len(received_labels))
+
+        analysis_node = LIAAnalysisNode(
+            analysis_input=self.analysis_input,
+            delta=1e-6,
+            num_bootstrap_resampling_times=2,
+            score_computation_function=capturing_scores,
+        )
+
+        analysis_node.compute_scores(0)
+
+        # Verify the function received the correct arguments
+        np.testing.assert_array_equal(
+            captured_args["received_labels"], self.received_labels[0]
+        )
+        np.testing.assert_array_equal(captured_args["y1_probs"], self.y1_preds)
+        np.testing.assert_array_equal(captured_args["predictions"], self.predictions)
+
+    def test_default_score_computation_function_is_none(self) -> None:
+        """Test that score_computation_function defaults to None."""
+        analysis_node = LIAAnalysisNode(
+            analysis_input=self.analysis_input,
+            delta=1e-6,
+            num_bootstrap_resampling_times=2,
+        )
+
+        self.assertIsNone(analysis_node.score_computation_function)
+
+    def test_score_computation_function_end_to_end(self) -> None:
+        """Test that score_computation_function integrates with run_analysis."""
+
+        def constant_scores(
+            received_labels: np.ndarray,
+            y1_probs: np.ndarray,
+            predictions: np.ndarray,
+        ) -> np.ndarray:
+            """Return constant scores for deterministic analysis output."""
+            return np.ones(len(received_labels)) * 42.0
+
+        analysis_node = LIAAnalysisNode(
+            analysis_input=self.analysis_input,
+            delta=1e-6,
+            num_bootstrap_resampling_times=2,
+            score_computation_function=constant_scores,
+        )
+
+        outputs = analysis_node.compute_outputs()
+
+        # Analysis should complete successfully with the provided function
+        self.assertIsInstance(outputs, dict)
+        self.assertIsInstance(outputs["eps"], float)
+        self.assertIsInstance(outputs["accuracy"], float)
+        self.assertIsInstance(outputs["auc"], float)
