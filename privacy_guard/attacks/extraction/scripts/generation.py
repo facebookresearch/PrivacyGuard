@@ -19,7 +19,7 @@
 Script for running various NLP tasks using the PrivacyGuard generation package.
 
 Usage:
-    buck run -c fbcode.enable_gpu_sections=true -c hpc_comms.use_nccl=2.18.3 privacy_guard/attacks/extraction/utils:generation_main --task [task_name] [options]
+    buck run -c fbcode.enable_gpu_sections=true -c hpc_comms.use_nccl=stable privacy_guard/attacks/extraction/utils:generation_main --task [task_name] [options]
 
 Tasks:
     - keyword_extraction: Extract keywords from text
