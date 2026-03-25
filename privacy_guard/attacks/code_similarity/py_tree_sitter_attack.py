@@ -14,6 +14,7 @@
 
 # pyre-strict
 
+import ctypes
 import logging
 from types import ModuleType
 from typing import Any
@@ -25,6 +26,9 @@ from privacy_guard.analysis.code_similarity.code_similarity_analysis_input impor
     CodeSimilarityAnalysisInput,
 )
 from privacy_guard.attacks.base_attack import BaseAttack
+
+# pyre-ignore[21]: Parser is re-exported from tree_sitter.binding (C extension)
+# but Pyre cannot resolve the binding module's .pyi stub in this Buck config.
 from tree_sitter import (  # @manual=fbsource//third-party/pypi/tree-sitter:tree-sitter
     Language,
     Parser,
@@ -43,7 +47,26 @@ _LANGUAGE_REGISTRY: dict[str, ModuleType] = {
 }
 
 
-def _get_parser(language: str) -> Parser:
+def _language_from_capsule(ts_module: ModuleType) -> Language:
+    """Create a tree-sitter Language from a language module's capsule.
+
+    tree-sitter 0.20.4 expects ``Language(library_path, name)`` but the
+    modern language packages (tree-sitter-python, tree-sitter-cpp) expose
+    a ``language()`` function returning a PyCapsule.  We extract the raw
+    pointer from the capsule and construct a Language-compatible object.
+    """
+    capsule = ts_module.language()  # type: ignore[attr-defined]
+    ctypes.pythonapi.PyCapsule_GetPointer.restype = ctypes.c_void_p
+    ctypes.pythonapi.PyCapsule_GetPointer.argtypes = [ctypes.py_object, ctypes.c_char_p]
+    language_id: ctypes.c_void_p = ctypes.pythonapi.PyCapsule_GetPointer(
+        capsule, b"tree_sitter.Language"
+    )
+    lang = Language.__new__(Language)
+    lang.language_id = language_id  # type: ignore[attr-defined]
+    return lang
+
+
+def _get_parser(language: str) -> Parser:  # pyre-ignore[11]
     """Create a tree-sitter Parser for the given language.
 
     Args:
@@ -63,8 +86,9 @@ def _get_parser(language: str) -> Parser:
             f"Supported: {sorted(_LANGUAGE_REGISTRY.keys())}"
         )
 
-    ts_language = Language(ts_module.language())  # type: ignore[attr-defined]
-    parser = Parser(ts_language)
+    ts_language = _language_from_capsule(ts_module)
+    parser = Parser()  # pyre-ignore[16]
+    parser.set_language(ts_language)
     return parser
 
 

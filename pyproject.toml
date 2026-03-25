@@ -41,9 +41,9 @@ dependencies = [
     'later',
     'torchvision',
     'matplotlib',
-    'tree-sitter',
-    'tree-sitter-python',
-    'tree-sitter-cpp',
+    'tree-sitter==0.20.4',
+    'tree-sitter-python<=0.23.2',
+    'tree-sitter-cpp<=0.23.4',
     'zss',
 ]
 
