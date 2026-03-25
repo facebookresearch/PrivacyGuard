@@ -43,7 +43,16 @@ dependencies = [
     'matplotlib',
     'tree-sitter==0.20.4',
     'tree-sitter-python<=0.23.2',
+    'tree-sitter-c',
+    'tree-sitter-c-sharp',
     'tree-sitter-cpp<=0.23.4',
+    'tree-sitter-go',
+    'tree-sitter-java',
+    'tree-sitter-javascript',
+    'tree-sitter-php',
+    'tree-sitter-ruby',
+    'tree-sitter-rust',
+    'codebleu==0.6.0',
     'zss',
 ]
 

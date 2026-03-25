@@ -57,3 +57,50 @@ class CodeSimilarityAnalysisInput(BaseAnalysisInput):
     def generation_df(self) -> pd.DataFrame:
         """Property accessor for the generation DataFrame."""
         return self._df_train_user
+
+
+class CodeBleuAnalysisInput(BaseAnalysisInput):
+    """
+    Analysis input for CodeBLEU similarity analysis.
+
+    Stores a generation DataFrame containing target and model-generated code strings
+    along with their tokenized representations, ASTs, and normalized dataflows.
+
+    Required columns:
+        - target_code_string: the original target code
+        - model_generated_code_string: the model's generated code
+        - target_tokens: tokenized target code (List[str])
+        - generated_tokens: tokenized generated code (List[str])
+        - target_tokens_with_weights: tokens with keyword weights for weighted BLEU
+        - target_ast: parsed AST (tree_sitter.Node) for the target code
+        - generated_ast: parsed AST (tree_sitter.Node) for the generated code
+        - target_normalized_dfg: normalized dataflow graph for target code
+        - generated_normalized_dfg: normalized dataflow graph for generated code
+
+    Args:
+        generation_df: DataFrame containing code strings and parsed representations
+    """
+
+    REQUIRED_COLUMNS: list[str] = [
+        "target_code_string",
+        "model_generated_code_string",
+        "target_tokens",
+        "generated_tokens",
+        "target_tokens_with_weights",
+        "target_ast",
+        "generated_ast",
+        "target_normalized_dfg",
+        "generated_normalized_dfg",
+    ]
+
+    def __init__(self, generation_df: pd.DataFrame) -> None:
+        missing = set(self.REQUIRED_COLUMNS) - set(generation_df.columns)
+        if missing:
+            raise ValueError(f"Missing required columns in generation_df: {missing}")
+
+        super().__init__(df_train_user=generation_df, df_test_user=pd.DataFrame())
+
+    @property
+    def generation_df(self) -> pd.DataFrame:
+        """Property accessor for the generation DataFrame."""
+        return self._df_train_user
