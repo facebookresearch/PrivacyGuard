@@ -88,6 +88,7 @@ def _get_parser(language: str) -> Parser:  # pyre-ignore[11]
 
     ts_language = _language_from_capsule(ts_module)
     parser = Parser()  # pyre-ignore[16]
+    # pyre-ignore[16]: Module `tree_sitter` has no attribute `Parser`
     parser.set_language(ts_language)
     return parser
 

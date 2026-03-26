@@ -26,6 +26,8 @@ jobs:
 
     - name: Install PrivacyGuard library
       run: |
+        printf 'tree-sitter==0.20.4\nsetuptools<75\n' > /tmp/build-constraints.txt
+        UV_BUILD_CONSTRAINT=/tmp/build-constraints.txt uv pip install codebleu==0.6.0
         uv pip install -e .
 
     - name: Tests and coverage
