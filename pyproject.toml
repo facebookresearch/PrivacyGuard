@@ -93,9 +93,8 @@ find = {}
 [tool.setuptools.package-data]
 "*" = ["*.js", "*.css", "*.html"]
 
-#[tool.setuptools_scm]
-#write_to = "privacy_guard/version.py"
-#local_scheme = "node-and-date"
+[tool.setuptools_scm]
+local_scheme = "node-and-date"
 
 [tool.usort]
 first_party_detection = false
