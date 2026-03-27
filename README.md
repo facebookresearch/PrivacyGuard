@@ -45,7 +45,9 @@ To work and develop with PrivacyGuard, we recomemend cloning the repository and 
 ```
 git clone https://github.com/facebookresearch/PrivacyGuard.git --depth 1
 cd PrivacyGuard
-pip install -e
+pip install tree-sitter==0.20.4 "setuptools<75" requests
+pip install --no-build-isolation codebleu==0.6.0
+pip install -e .
 ```
 
 
