@@ -1,0 +1,18 @@
+# Dependencies
+node_modules
+
+# Build output
+dist
+
+# Generated at build time by vite.config.ts
+public/pg_modules
+
+# Editor directories and files
+.vscode/*
+!.vscode/extensions.json
+*.swp
+*.swo
+*~
+
+# OS files
+.DS_Store
