@@ -6,7 +6,7 @@ build-backend = "setuptools.build_meta"
 name = "PrivacyGuard"
 description = "PrivacyGuard platform for Privacy Attacks and Analysis. Perform privacy analyses of ML models using Inference Attacks and Extraction Attacks."
 authors = [{name = "Meta Platforms, Inc."}]
-license = "MIT"
+license = "Apache-2.0"
 license-files = ["LICENSE"]
 readme = "README.md"
 requires-python = ">=3.10"
