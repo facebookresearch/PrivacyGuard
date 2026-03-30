@@ -24,11 +24,15 @@ jobs:
       with:
         python-version: ${{ matrix.python-version }}
 
-    - name: Install PrivacyGuard library
+    - name: Verify base install (no optional dependencies)
       run: |
         printf 'tree-sitter==0.20.4\nsetuptools<75\n' > /tmp/build-constraints.txt
-        UV_BUILD_CONSTRAINT=/tmp/build-constraints.txt uv pip install codebleu==0.6.0
-        uv pip install -e .
+        UV_BUILD_CONSTRAINT=/tmp/build-constraints.txt uv pip install -e .
+        python -c "import privacy_guard; print('Base install OK')"
+
+    - name: Install PrivacyGuard library with code_similarity
+      run: |
+        UV_BUILD_CONSTRAINT=/tmp/build-constraints.txt uv pip install -e ".[code_similarity]"
 
     - name: Tests and coverage
       run: |
