@@ -3,11 +3,10 @@ requires = ["setuptools>=34.4", "wheel", "setuptools_scm"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "PrivacyGuard"
+name = "privacyguard-platform"
 description = "PrivacyGuard platform for Privacy Attacks and Analysis. Perform privacy analyses of ML models using Inference Attacks and Extraction Attacks."
 authors = [{name = "Meta Platforms, Inc."}]
-license = "Apache-2.0"
-license-files = ["LICENSE"]
+license = {text = "Apache-2.0"}
 readme = "README.md"
 requires-python = ">=3.10"
 keywords = ["PrivacyGuard", "Privacy", "Privacy Attack", "Privacy Analysis", "privacy_guard"]
@@ -41,6 +40,10 @@ dependencies = [
     'later',
     'torchvision',
     'matplotlib',
+]
+
+[project.optional-dependencies]
+code_similarity = [
     'tree-sitter==0.20.4',
     'tree-sitter-python<=0.23.2',
     'tree-sitter-c',
@@ -56,7 +59,6 @@ dependencies = [
     'zss',
 ]
 
-[project.optional-dependencies]
 dev = [
     "beautifulsoup4",
     "Jinja2",
@@ -76,7 +78,7 @@ unittest_minimal = [
 ]
 
 unittest = [
-    "privacy-guard[dev,notebook,unittest_minimal]",
+    "privacyguard-platform[dev,notebook,unittest_minimal,code_similarity]",
 ]
 
 tutorial = [
