@@ -32,6 +32,7 @@ dependencies = [
     "pytest>=4.6",
     "pytest-cov",
     "pytest-timeout",
+    "requests",
     "torch",
     'tqdm',
     'textdistance',
