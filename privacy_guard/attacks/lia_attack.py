@@ -178,8 +178,13 @@ class LIAAttack(BaseAttack):
                 raise ValueError(
                     "predictions_calib column not found in df_attack. Please provide calibration predictions."
                 )
+            predictions_y1_target = (
+                df_attack["predictions_y1_target"].values
+                if "predictions_y1_target" in df_attack.columns
+                else df_attack["predictions"].values
+            )
             predictions_y1_generation = (
-                combo_factor * df_attack["predictions"].values
+                combo_factor * predictions_y1_target
                 + (1 - combo_factor) * df_attack["predictions_calib"].values
             )
             print(

@@ -244,6 +244,7 @@ class TestLIAAttack(unittest.TestCase):
         predictions_y1 = lia_attack.get_y1_predictions(df_attack)
 
         expected_predictions = df_attack["predictions"].values
+        self.assertEqual(len(predictions_y1), len(expected_predictions))
         assert_array_equal(predictions_y1, expected_predictions)
 
     def test_get_y1_predictions_calibration(self) -> None:
@@ -258,6 +259,7 @@ class TestLIAAttack(unittest.TestCase):
         predictions_y1 = lia_attack.get_y1_predictions(df_attack)
 
         expected_predictions = df_attack["predictions_calib"].values
+        self.assertEqual(len(predictions_y1), len(expected_predictions))
         assert_array_equal(predictions_y1, expected_predictions)
 
     def test_get_y1_predictions_reference(self) -> None:
@@ -280,6 +282,7 @@ class TestLIAAttack(unittest.TestCase):
         predictions_y1 = lia_attack.get_y1_predictions(df_with_reference)
 
         expected_predictions = df_with_reference["predictions_reference"].values
+        self.assertEqual(len(predictions_y1), len(expected_predictions))
         assert_array_equal(predictions_y1, expected_predictions)
 
     def test_get_y1_predictions_combo(self) -> None:
@@ -290,6 +293,25 @@ class TestLIAAttack(unittest.TestCase):
             y1_generation="0.7",  # 70% target, 30% calibration
         )
 
+        df_attack = self.attack_input["df_aggregated"].copy()
+        df_attack["predictions_y1_target"] = [0.3, 0.2, 0.4, 0.1, 0.5]
+        predictions_y1 = lia_attack.get_y1_predictions(df_attack)
+
+        self.assertEqual(len(predictions_y1), len(df_attack))
+        assert_almost_equal(
+            predictions_y1,
+            0.7 * df_attack["predictions_y1_target"].values
+            + 0.3 * df_attack["predictions_calib"].values,
+        )
+
+    def test_get_y1_predictions_combo_falls_back_to_predictions(self) -> None:
+        """Test combo y1 generation falls back to predictions when needed."""
+        lia_attack = LIAAttack(
+            attack_input=self.attack_input,
+            row_aggregation=AggregationType.MAX,
+            y1_generation="0.7",
+        )
+
         df_attack = self.attack_input["df_aggregated"]
         predictions_y1 = lia_attack.get_y1_predictions(df_attack)
 
@@ -297,6 +319,7 @@ class TestLIAAttack(unittest.TestCase):
             0.7 * df_attack["predictions"].values
             + 0.3 * df_attack["predictions_calib"].values
         )
+        self.assertEqual(len(predictions_y1), len(df_attack))
         assert_almost_equal(predictions_y1, expected_predictions)
 
     def test_get_y1_predictions_missing_columns(self) -> None:
@@ -479,6 +502,38 @@ class TestLIAAttack(unittest.TestCase):
                         analysis_input.received_labels[i, j], analysis_input.y1[i, j]
                     )
 
+    def test_run_attack_keeps_scoring_predictions_separate_from_y1_generation(
+        self,
+    ) -> None:
+        """Test combo mode separates scoring predictions from y1 generation inputs."""
+        df_attack = self.attack_input["df_aggregated"].copy()
+        df_attack["predictions_y1_target"] = [0.3, 0.2, 0.4, 0.1, 0.5]
+        attack_input = {
+            "df_train_and_calib": self.attack_input["df_train_and_calib"],
+            "df_aggregated": df_attack,
+        }
+        lia_attack = LIAAttack(
+            attack_input=attack_input,
+            row_aggregation=AggregationType.MAX,
+            y1_generation="0.7",
+            num_resampling_times=5,
+        )
+
+        analysis_input = lia_attack.run_attack()
+
+        self.assertEqual(
+            len(analysis_input.predictions), len(df_attack["predictions"].values)
+        )
+        assert_array_equal(analysis_input.predictions, df_attack["predictions"].values)
+        expected_predictions_y1_generation = (
+            0.7 * df_attack["predictions_y1_target"].values
+            + 0.3 * df_attack["predictions_calib"].values
+        )
+        assert_almost_equal(
+            analysis_input.predictions_y1_generation,
+            expected_predictions_y1_generation,
+        )
+
     def test_y1_generation_function_is_called(self) -> None:
         """Test that a provided y1_generation_function is used for label generation."""
 
@@ -488,6 +543,7 @@ class TestLIAAttack(unittest.TestCase):
             num_resampling_times: int,
         ) -> np.ndarray:
             """Return all-ones labels to verify the function is invoked."""
+            self.assertEqual(len(predictions_y1), len(labels))
             return np.ones((num_resampling_times, len(labels)), dtype=int)
 
         lia_attack = LIAAttack(
