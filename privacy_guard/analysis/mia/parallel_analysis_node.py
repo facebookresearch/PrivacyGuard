@@ -123,6 +123,7 @@ class ParallelAnalysisNode(AnalysisNode):
                 f"An exception occurred when computing acc/auc/epsilon metrics: {e}"
             )
 
+        # pyrefly: ignore [bad-return]
         return metrics_results
 
     def _parallel_compute_chunk_sizes(self, task_num: int) -> list[int]:

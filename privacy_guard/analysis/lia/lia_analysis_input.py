@@ -22,11 +22,17 @@ from privacy_guard.analysis.base_analysis_input import BaseAnalysisInput
 class LIAAnalysisInput(BaseAnalysisInput):
     def __init__(
         self,
+        # pyrefly: ignore [bad-specialization]
         predictions: NDArray[float],
+        # pyrefly: ignore [bad-specialization]
         predictions_y1_generation: NDArray[float],
+        # pyrefly: ignore [bad-specialization]
         true_bits: NDArray[int],
+        # pyrefly: ignore [bad-specialization]
         y0: NDArray[int],
+        # pyrefly: ignore [bad-specialization]
         y1: NDArray[int],
+        # pyrefly: ignore [bad-specialization]
         received_labels: NDArray[int],
     ) -> None:
         """

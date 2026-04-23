@@ -25,6 +25,8 @@ import torch
 from torch.utils.data import Dataset, Subset
 from torchvision import transforms
 from torchvision.datasets import CIFAR10
+
+# pyrefly: ignore [missing-module-attribute]
 from typing_extensions import Sized
 
 
@@ -111,6 +113,7 @@ class CustomDataset(Dataset):
     @property
     def input_shape(self) -> torch.Size:
         """Return the shape of a single data sample (excluding batch dim)."""
+        # pyrefly: ignore [bad-return]
         return self.data.shape[1:]
 
 
@@ -184,6 +187,7 @@ def create_shadow_datasets(
     Returns:
         List of (train_subsets, keep) tuples for each shadow model and the target model
     """
+    # pyrefly: ignore [bad-argument-type]
     np.random.seed(seed)
     dataset_size = len(cast(Sized, train_dataset))
 
