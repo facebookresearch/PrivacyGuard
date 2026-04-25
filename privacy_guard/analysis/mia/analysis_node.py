@@ -235,6 +235,7 @@ class AnalysisNode(BaseAnalysisNode):
         return eps_cp
 
     @staticmethod
+    # pyrefly: ignore [bad-specialization]
     def _compute_ci(array: NDArray[float], axis: int = 0) -> tuple[NDArray, NDArray]:
         """Compute confidence intervals (used for eps, auc, accuracy)"""
         # Sort along the specified axis
@@ -269,6 +270,7 @@ class AnalysisNode(BaseAnalysisNode):
         Returns:
             A list of indexes (with duplicates)
         """
+        # pyrefly: ignore [bad-return]
         return np.random.randint(0, num_users, sample_size)
 
     def run_analysis(self) -> BaseAnalysisOutput:

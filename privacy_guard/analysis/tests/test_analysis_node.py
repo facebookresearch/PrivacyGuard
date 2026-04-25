@@ -392,6 +392,7 @@ class TestAnalysisNode(BaseTestAnalysisNode):
     def test_use_fnr_tnr_parameter_comparison(self) -> None:
         """Test comparison between use_fnr_tnr=False and use_fnr_tnr=True"""
         # Set random seed to ensure deterministic bootstrap sampling
+        # pyrefly: ignore [bad-argument-type]
         np.random.seed(42)
 
         # Test with use_fnr_tnr=False
@@ -406,6 +407,7 @@ class TestAnalysisNode(BaseTestAnalysisNode):
         outputs_false = analysis_node_false.compute_outputs()
 
         # Reset seed to ensure same bootstrap sampling for the second run
+        # pyrefly: ignore [bad-argument-type]
         np.random.seed(42)
 
         # Test with use_fnr_tnr=True

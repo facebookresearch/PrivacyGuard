@@ -92,6 +92,7 @@ class BaseTestAnalysisNode(unittest.TestCase):
         super().setUp()
 
     def get_long_dataframes(self) -> Tuple[pd.DataFrame, pd.DataFrame]:
+        # pyrefly: ignore [bad-argument-type]
         np.random.seed(0)
         df_train_user_long = self.sample_normal_distribution(0.5, 0.1, 10000)
         df_test_user_long = self.sample_normal_distribution(0.5, 0.1, 10000)

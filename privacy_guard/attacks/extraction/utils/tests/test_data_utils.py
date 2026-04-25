@@ -40,6 +40,7 @@ class TestDataUtils(unittest.TestCase):
                 Callable[[pd.DataFrame, str], None],
                 Callable[[str], pd.DataFrame],
             ]
+            # pyrefly: ignore [bad-assignment]
         ] = [
             (
                 "jsonl",

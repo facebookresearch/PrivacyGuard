@@ -17,6 +17,8 @@ from typing import Callable, Tuple
 import numpy as np
 from privacy_guard.analysis.base_analysis_node import BaseAnalysisNode
 from privacy_guard.analysis.base_analysis_output import BaseAnalysisOutput
+
+# pyrefly: ignore [missing-module-attribute]
 from scipy.stats import norm
 
 

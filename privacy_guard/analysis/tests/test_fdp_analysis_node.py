@@ -18,6 +18,8 @@ from privacy_guard.analysis.mia.fdp_analysis_node import (
     FDPAnalysisNode,
     FDPAnalysisNodeOutput,
 )
+
+# pyrefly: ignore [missing-module-attribute]
 from scipy.stats import norm
 
 
