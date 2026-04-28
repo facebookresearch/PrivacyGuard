@@ -14,14 +14,14 @@
 
 # pyre-strict
 
-import ctypes
+import importlib.resources
 import logging
-from types import ModuleType
 from typing import Any
 
 import pandas as pd
-import tree_sitter_cpp  # @manual=fbsource//third-party/pypi/tree-sitter-cpp:tree-sitter-cpp
-import tree_sitter_python  # @manual=fbsource//third-party/pypi/tree-sitter-python:tree-sitter-python
+from codebleu.codebleu import (  # @manual=fbsource//third-party/pypi/codebleu:codebleu
+    AVAILABLE_LANGS,
+)
 from privacy_guard.analysis.code_similarity.code_similarity_analysis_input import (
     CodeSimilarityAnalysisInput,
 )
@@ -38,39 +38,25 @@ from zss import Node as ZSSNode
 
 logger: logging.Logger = logging.getLogger(__name__)
 
-# Maps user-facing language strings to tree-sitter language modules.
-_LANGUAGE_REGISTRY: dict[str, ModuleType] = {
-    "python": tree_sitter_python,
-    "py": tree_sitter_python,
-    "c++": tree_sitter_cpp,
-    "cpp": tree_sitter_cpp,
+# Aliases that map to canonical codebleu language names.
+_LANGUAGE_ALIASES: dict[str, str] = {
+    "py": "python",
+    "c++": "cpp",
+    "js": "javascript",
 }
 
-
-def _language_from_capsule(ts_module: ModuleType) -> Language:
-    """Create a tree-sitter Language from a language module's capsule.
-
-    tree-sitter 0.20.4 expects ``Language(library_path, name)`` but the
-    modern language packages (tree-sitter-python, tree-sitter-cpp) expose
-    a ``language()`` function returning a PyCapsule.  We extract the raw
-    pointer from the capsule and construct a Language-compatible object.
-    """
-    capsule = ts_module.language()  # type: ignore[attr-defined]
-    ctypes.pythonapi.PyCapsule_GetPointer.restype = ctypes.c_void_p
-    ctypes.pythonapi.PyCapsule_GetPointer.argtypes = [ctypes.py_object, ctypes.c_char_p]
-    language_id: ctypes.c_void_p = ctypes.pythonapi.PyCapsule_GetPointer(
-        capsule, b"tree_sitter.Language"
-    )
-    lang = Language.__new__(Language)
-    lang.language_id = language_id  # type: ignore[attr-defined]
-    return lang
+SUPPORTED_LANGS: list[str] = AVAILABLE_LANGS
 
 
 def _get_parser(language: str) -> Parser:  # pyre-ignore[11]
     """Create a tree-sitter Parser for the given language.
 
+    Uses the grammar bundled in the ``codebleu`` package (``my-languages.so``)
+    which supports: java, javascript, c_sharp, php, c, cpp, python, go, ruby, rust.
+
     Args:
-        language: a key in _LANGUAGE_REGISTRY (e.g. "python", "cpp")
+        language: a language name from ``codebleu.AVAILABLE_LANGS``,
+            or an alias (e.g. "py", "c++", "js").
 
     Returns:
         A configured tree-sitter Parser instance.
@@ -78,17 +64,16 @@ def _get_parser(language: str) -> Parser:  # pyre-ignore[11]
     Raises:
         ValueError: if the language is not supported.
     """
-    lang_key = language.lower()
-    ts_module = _LANGUAGE_REGISTRY.get(lang_key)
-    if ts_module is None:
+    lang_key = _LANGUAGE_ALIASES.get(language.lower(), language.lower())
+    if lang_key not in AVAILABLE_LANGS:
         raise ValueError(
-            f"Unsupported language '{language}'. "
-            f"Supported: {sorted(_LANGUAGE_REGISTRY.keys())}"
+            f"Unsupported language '{language}'. Supported: {sorted(AVAILABLE_LANGS)}"
         )
-
-    ts_language = _language_from_capsule(ts_module)
-    parser = Parser()  # pyre-ignore[16]
-    # pyre-ignore[16]: Module `tree_sitter` has no attribute `Parser`
+    ts_language = Language(
+        importlib.resources.files("codebleu") / "my-languages.so", lang_key
+    )
+    # pyre-ignore[16]: Module `tree_sitter` has no attribute `Parser`.
+    parser = Parser()
     parser.set_language(ts_language)
     return parser
 
