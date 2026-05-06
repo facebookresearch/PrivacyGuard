@@ -115,28 +115,108 @@ class TestTreeEditDistanceNode(unittest.TestCase):
             output = _run_e2e(df)
             self.assertAlmostEqual(output.avg_similarity, 1.0, places=5)
 
+    def test_java_similarity(self) -> None:
+        """Identical Java code yields ~1.0; structurally similar code is high."""
+        with self.subTest("identical"):
+            code = "class Foo { int add(int a, int b) { return a + b; } }"
+            df = pd.DataFrame(
+                {
+                    "target_code_string": [code],
+                    "model_generated_code_string": [code],
+                }
+            )
+            output = _run_e2e(df, default_language="java")
+            self.assertAlmostEqual(output.avg_similarity, 1.0, places=5)
+
+        with self.subTest("similar"):
+            df = pd.DataFrame(
+                {
+                    "target_code_string": [
+                        "class Foo { int add(int a, int b) { return a + b; } }"
+                    ],
+                    "model_generated_code_string": [
+                        "class Bar { int sum(int x, int y) { return x + y; } }"
+                    ],
+                }
+            )
+            output = _run_e2e(df, default_language="java")
+            self.assertGreater(output.avg_similarity, 0.7)
+
+    def test_c_similarity(self) -> None:
+        """Identical C code yields ~1.0."""
+        code = "int add(int a, int b) { return a + b; }"
+        df = pd.DataFrame(
+            {
+                "target_code_string": [code],
+                "model_generated_code_string": [code],
+            }
+        )
+        output = _run_e2e(df, default_language="c")
+        self.assertAlmostEqual(output.avg_similarity, 1.0, places=5)
+
+    def test_rust_similarity(self) -> None:
+        """Identical Rust code yields ~1.0."""
+        code = "fn add(a: i32, b: i32) -> i32 { a + b }"
+        df = pd.DataFrame(
+            {
+                "target_code_string": [code],
+                "model_generated_code_string": [code],
+            }
+        )
+        output = _run_e2e(df, default_language="rust")
+        self.assertAlmostEqual(output.avg_similarity, 1.0, places=5)
+
+    def test_ruby_similarity(self) -> None:
+        """Identical Ruby code yields ~1.0."""
+        code = "def add(a, b)\n  a + b\nend"
+        df = pd.DataFrame(
+            {
+                "target_code_string": [code],
+                "model_generated_code_string": [code],
+            }
+        )
+        output = _run_e2e(df, default_language="ruby")
+        self.assertAlmostEqual(output.avg_similarity, 1.0, places=5)
+
+    def test_c_sharp_similarity(self) -> None:
+        """Identical C# code yields ~1.0."""
+        code = "class Foo { int Add(int a, int b) { return a + b; } }"
+        df = pd.DataFrame(
+            {
+                "target_code_string": [code],
+                "model_generated_code_string": [code],
+            }
+        )
+        output = _run_e2e(df, default_language="c_sharp")
+        self.assertAlmostEqual(output.avg_similarity, 1.0, places=5)
+
     def test_avg_similarity_by_language(self) -> None:
-        """Mixed Python+C++ input produces per-language averages."""
+        """Mixed multi-language input produces per-language averages."""
         df = pd.DataFrame(
             {
                 "target_code_string": [
                     "def foo():\n    return 1\n",
                     "int main() { return 0; }",
+                    "class Foo { int add(int a, int b) { return a + b; } }",
+                    "fn add(a: i32, b: i32) -> i32 { a + b }",
+                    "int add(int a, int b) { return a + b; }",
                 ],
                 "model_generated_code_string": [
                     "def foo():\n    return 1\n",
                     "int main() { return 0; }",
+                    "class Foo { int add(int a, int b) { return a + b; } }",
+                    "fn add(a: i32, b: i32) -> i32 { a + b }",
+                    "int add(int a, int b) { return a + b; }",
                 ],
-                "language": ["python", "cpp"],
+                "language": ["python", "cpp", "java", "rust", "c"],
             }
         )
         output = _run_e2e(df)
         assert output.avg_similarity_by_language is not None
         by_lang = output.avg_similarity_by_language
-        self.assertIn("python", by_lang)
-        self.assertIn("cpp", by_lang)
-        self.assertAlmostEqual(by_lang["python"], 1.0, places=5)
-        self.assertAlmostEqual(by_lang["cpp"], 1.0, places=5)
+        for lang in ["python", "cpp", "java", "rust", "c"]:
+            self.assertIn(lang, by_lang)
+            self.assertAlmostEqual(by_lang[lang], 1.0, places=5)
 
     def test_compute_similarity_static_method(self) -> None:
         """TreeEditDistanceNode.compute_similarity works standalone."""
