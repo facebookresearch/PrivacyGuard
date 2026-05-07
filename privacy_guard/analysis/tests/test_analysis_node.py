@@ -231,6 +231,72 @@ class TestAnalysisNode(BaseTestAnalysisNode):
         # Check that all lower bounds are less than upper bounds
         self.assertTrue(np.all(lower_bound <= upper_bound))
 
+    def test_compute_ci_two_sided_default(self) -> None:
+        """Test that the default _compute_ci behavior is the two-sided 95% CI."""
+        # Create test data ranging from 1 to 100
+        test_data = np.arange(1, 101)
+
+        lower_bound, upper_bound = AnalysisNode._compute_ci(
+            test_data, use_one_sided_ci_ub=False
+        )
+
+        # Two-sided: lower_idx = max(int(0.025 * 100) - 1, 0) = 1 -> sorted[1] = 2
+        # upper_idx = int(0.975 * 100) = 97 -> sorted[97] = 98
+        self.assertEqual(lower_bound[0], 2)
+        self.assertEqual(upper_bound[0], 98)
+
+    def test_compute_ci_one_sided_upper_bound(self) -> None:
+        """Test that use_one_sided_ci_ub=True uses the one-sided 95% CI upper bound."""
+        # Create test data ranging from 1 to 100
+        test_data = np.arange(1, 101)
+
+        lower_bound, upper_bound = AnalysisNode._compute_ci(
+            test_data, use_one_sided_ci_ub=True
+        )
+
+        # One-sided: lower_idx = 0 -> sorted[0] = 1
+        # upper_idx = int(0.95 * 100) = 95 -> sorted[95] = 96
+        self.assertEqual(lower_bound[0], 1)
+        self.assertEqual(upper_bound[0], 96)
+
+    def test_compute_ci_one_sided_vs_two_sided(self) -> None:
+        """Test that one-sided CI upper bound is less than or equal to the two-sided CI upper bound."""
+        # Use a larger sorted array so both indexing schemes are well-defined
+        test_data = np.arange(1, 1001)
+
+        two_sided_lb, two_sided_ub = AnalysisNode._compute_ci(
+            test_data, use_one_sided_ci_ub=False
+        )
+        one_sided_lb, one_sided_ub = AnalysisNode._compute_ci(
+            test_data, use_one_sided_ci_ub=True
+        )
+
+        # One-sided upper bound (95th percentile) should be lower than
+        # two-sided upper bound (97.5th percentile)
+        self.assertLess(one_sided_ub[0], two_sided_ub[0])
+        # One-sided lower bound (index 0) should be lower than or equal to
+        # two-sided lower bound (around 2.5th percentile)
+        self.assertLessEqual(one_sided_lb[0], two_sided_lb[0])
+
+    def test_compute_ci_one_sided_with_2d_array(self) -> None:
+        """Test one-sided CI upper bound computation with 2D arrays."""
+        # Create 2D test data (100 samples, 5 features)
+        test_data_2d = np.random.rand(100, 5)
+
+        lower_bound, upper_bound = AnalysisNode._compute_ci(
+            test_data_2d, axis=0, use_one_sided_ci_ub=True
+        )
+
+        # Check shapes
+        self.assertEqual(lower_bound.shape, (5,))
+        self.assertEqual(upper_bound.shape, (5,))
+
+        # Check that all lower bounds are less than or equal to upper bounds
+        self.assertTrue(np.all(lower_bound <= upper_bound))
+
+        # Lower bound should equal min along axis (lower_idx = 0 after sort)
+        self.assertTrue(np.allclose(lower_bound, np.min(test_data_2d, axis=0)))
+
     def test_compute_output_types(self) -> None:
         analysis_outputs = self.analysis_node.run_analysis()
         self.assertIsInstance(analysis_outputs, AnalysisNodeOutput)
