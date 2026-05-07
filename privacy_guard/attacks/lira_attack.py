@@ -23,6 +23,8 @@ from privacy_guard.analysis.mia.aggregate_analysis_input import (
     AggregationType,
 )
 from privacy_guard.attacks.base_attack import BaseAttack
+
+# pyrefly: ignore [missing-module-attribute]
 from scipy.stats import norm
 
 logger: logging.Logger = logging.getLogger(__name__)

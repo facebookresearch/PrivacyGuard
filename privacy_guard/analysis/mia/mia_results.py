@@ -15,6 +15,8 @@ import logging
 import numpy as np
 import torch
 from numpy.typing import NDArray
+
+# pyrefly: ignore [missing-module-attribute]
 from scipy.stats import beta
 from sklearn.metrics import auc, roc_curve
 
@@ -41,9 +43,12 @@ class MIAResults:
 
     def _get_indices_of_error_at_thresholds(
         self,
+        # pyrefly: ignore [bad-specialization]
         error_rates: NDArray[float],
+        # pyrefly: ignore [bad-specialization]
         error_thresholds: NDArray[float],
         error_type: str,
+        # pyrefly: ignore [bad-specialization]
     ) -> NDArray[int]:
         """
         Get indices where error values are greater/smaller than error thresholds.
@@ -80,6 +85,7 @@ class MIAResults:
         else:
             raise ValueError(f"Invalid error type: {error_type}")
 
+    # pyrefly: ignore [bad-specialization]
     def get_tpr_fpr(self) -> tuple[NDArray[float], NDArray[float]]:
         """
         Computes true positive rate and true negative rate given scores and labels indicating membership.
@@ -213,6 +219,7 @@ class MIAResults:
     def compute_metrics_at_error_threshold(
         self,
         delta: float,
+        # pyrefly: ignore [bad-specialization]
         error_threshold: NDArray[float],
         cap_eps: bool = True,
         verbose: bool = False,

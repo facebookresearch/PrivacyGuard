@@ -39,6 +39,7 @@ class MockCIFAR10(Dataset):
     def __len__(self) -> int:
         return self.size
 
+    # pyrefly: ignore [bad-param-name-override]
     def __getitem__(self, idx: int) -> tuple[torch.Tensor, torch.Tensor]:
         return self.data[idx], self.targets[idx]
 

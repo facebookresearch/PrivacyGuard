@@ -109,6 +109,7 @@ class TestTraining(unittest.TestCase):
         self.assertIsInstance(logits, np.ndarray)
 
         # The shape should be (num_samples, 1) since we're returning likelihood ratios
+        # pyrefly: ignore [bad-argument-type]
         expected_samples = len(self.test_loader.dataset)
         self.assertEqual(logits.shape, (expected_samples, 1))
 
@@ -182,6 +183,7 @@ class TestTraining(unittest.TestCase):
 
         # Check that scores is a numpy array with the expected shape
         self.assertIsInstance(scores, np.ndarray)
+        # pyrefly: ignore [bad-argument-type]
         expected_samples = len(self.test_loader.dataset)
         self.assertEqual(scores.shape, (expected_samples,))
 

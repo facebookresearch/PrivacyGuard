@@ -281,6 +281,7 @@ class TestLIAAttack(unittest.TestCase):
 
         predictions_y1 = lia_attack.get_y1_predictions(df_with_reference)
 
+        # pyrefly: ignore [missing-attribute]
         expected_predictions = df_with_reference["predictions_reference"].values
         self.assertEqual(len(predictions_y1), len(expected_predictions))
         assert_array_equal(predictions_y1, expected_predictions)

@@ -30,6 +30,7 @@ tqdm.pandas()
 def dump_augmented_df(df: pd.DataFrame, jsonl_output_path: str) -> None:
     jsonl_data = df.to_json(orient="records", lines=True)
     with open(jsonl_output_path, "w") as f:
+        # pyrefly: ignore [bad-argument-type]
         f.write(jsonl_data)
 
 

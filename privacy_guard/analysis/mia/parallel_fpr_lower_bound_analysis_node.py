@@ -128,6 +128,7 @@ class ParallelFPRLowerBoundAnalysisNode(FPRLowerBoundAnalysisNode):
                 f"An exception occurred when computing acc/auc/epsilon metrics: {e}"
             )
 
+        # pyrefly: ignore [bad-return]
         return metrics_results, eps_fpr_results
 
     def _parallel_compute_chunk_sizes(self, task_num: int) -> list[int]:

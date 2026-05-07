@@ -139,7 +139,9 @@ class CodeBleuAttack(BaseAttack):
                 if lang not in AVAILABLE_LANGS:
                     raise ValueError(f"Language {lang} not supported by CodeBLEU.")
                 tree_sitter_language = Language(
-                    importlib.resources.files("codebleu") / "my-languages.so", lang
+                    # pyrefly: ignore [bad-argument-type]
+                    importlib.resources.files("codebleu") / "my-languages.so",
+                    lang,
                 )
                 # pyre-ignore[16]: Module `tree_sitter` has no attribute `Parser`.
                 parser = Parser()
