@@ -34,6 +34,7 @@ class TestLIAAnalysisNode(unittest.TestCase):
         self.num_resampling = 5
 
         # Generate base data
+        # pyrefly: ignore [bad-argument-type]
         np.random.seed(42)  # For reproducible tests
         self.predictions = np.random.uniform(0.1, 0.9, self.num_samples)
         self.y1_preds = np.random.uniform(0.1, 0.9, self.num_samples)

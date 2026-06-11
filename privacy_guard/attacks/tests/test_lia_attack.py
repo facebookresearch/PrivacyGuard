@@ -281,6 +281,7 @@ class TestLIAAttack(unittest.TestCase):
 
         predictions_y1 = lia_attack.get_y1_predictions(df_with_reference)
 
+        # pyrefly: ignore [missing-attribute]
         expected_predictions = df_with_reference["predictions_reference"].values
         self.assertEqual(len(predictions_y1), len(expected_predictions))
         assert_array_equal(predictions_y1, expected_predictions)
@@ -300,6 +301,7 @@ class TestLIAAttack(unittest.TestCase):
         self.assertEqual(len(predictions_y1), len(df_attack))
         assert_almost_equal(
             predictions_y1,
+            # pyrefly: ignore [missing-attribute]
             0.7 * df_attack["predictions_y1_target"].values
             + 0.3 * df_attack["predictions_calib"].values,
         )
@@ -526,6 +528,7 @@ class TestLIAAttack(unittest.TestCase):
         )
         assert_array_equal(analysis_input.predictions, df_attack["predictions"].values)
         expected_predictions_y1_generation = (
+            # pyrefly: ignore [missing-attribute]
             0.7 * df_attack["predictions_y1_target"].values
             + 0.3 * df_attack["predictions_calib"].values
         )

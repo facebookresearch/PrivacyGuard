@@ -184,6 +184,7 @@ def create_shadow_datasets(
     Returns:
         List of (train_subsets, keep) tuples for each shadow model and the target model
     """
+    # pyrefly: ignore [bad-argument-type]
     np.random.seed(seed)
     dataset_size = len(cast(Sized, train_dataset))
 

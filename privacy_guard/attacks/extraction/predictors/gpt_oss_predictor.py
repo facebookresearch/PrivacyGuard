@@ -102,7 +102,9 @@ class GPTOSSPredictor(HuggingFacePredictor):
                 raise Warning(f"Found non-string item in batch: {type(item)}")
                 clean_batch.append(str(item) if item is not None else "")
             else:
+                # pyrefly: ignore [bad-argument-type]
                 clean_batch.append({"role": "user", "content": item})
+        # pyrefly: ignore [bad-return]
         return clean_batch
 
     # Override

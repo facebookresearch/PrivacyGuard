@@ -104,9 +104,13 @@ class ReferenceModelComparisonNode(BaseAnalysisNode):
 
         outputs = ReferenceModelComparisonNodeOutput(
             num_samples=len(target_df),
+            # pyrefly: ignore [bad-argument-type]
             tgt_pos_ref_pos=target_df["tgt_pos_ref_pos"],
+            # pyrefly: ignore [bad-argument-type]
             tgt_pos_ref_neg=target_df["tgt_pos_ref_neg"],
+            # pyrefly: ignore [bad-argument-type]
             tgt_neg_ref_pos=target_df["tgt_neg_ref_pos"],
+            # pyrefly: ignore [bad-argument-type]
             tgt_neg_ref_neg=target_df["tgt_neg_ref_neg"],
             augmented_output_dataset=target_df,
         )
