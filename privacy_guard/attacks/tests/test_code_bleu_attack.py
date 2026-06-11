@@ -35,7 +35,9 @@ from tree_sitter import (  # @manual=fbsource//third-party/pypi/tree-sitter:tree
 # pyre-ignore[11]: Annotation `Parser` is not defined as a type
 def _make_parser(language: str) -> Parser:
     tree_sitter_language = Language(
-        importlib.resources.files("codebleu") / "my-languages.so", language
+        # pyrefly: ignore [bad-argument-type]
+        importlib.resources.files("codebleu") / "my-languages.so",
+        language,
     )
     # pyre-ignore[16]: Module `tree_sitter` has no attribute `Parser`
     parser = Parser()

@@ -65,6 +65,7 @@ class FPRLowerBoundAnalysisNodeOutput(BaseAnalysisOutput):
 
 
 def compute_metric_mean_with_ci(
+    # pyrefly: ignore [bad-specialization]
     metric_array: NDArray[float],
 ) -> tuple[float, float, float]:
     # TODO: Identify descriptive values for mean, lb, ub when bootstrap fails
@@ -181,6 +182,7 @@ class FPRLowerBoundAnalysisNode(AnalysisNode):
 
         return outputs
 
+    # pyrefly: ignore [bad-specialization]
     def _make_acc_auc_epsilon_array(self) -> NDArray[float]:
         """
         Make list of tuples metrics at error thresholds, each of which contains the

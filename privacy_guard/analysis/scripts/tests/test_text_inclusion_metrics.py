@@ -82,6 +82,7 @@ class TestTextInclusionScript(unittest.TestCase):
             prefix="test_input", suffix=".jsonl", mode="w"
         )
         self.temp_input_file_name = self.temp_input_file.name
+        # pyrefly: ignore [no-matching-overload]
         self.temp_input_file.write(
             pd.DataFrame(self.data).to_json(orient="records", lines=True)
         )
@@ -92,6 +93,7 @@ class TestTextInclusionScript(unittest.TestCase):
             prefix="test_input", suffix=".jsonl", mode="w"
         )
         self.temp_sft_input_file_name = self.temp_sft_input_file.name
+        # pyrefly: ignore [no-matching-overload]
         self.temp_sft_input_file.write(
             pd.DataFrame(self.sft_data).to_json(orient="records", lines=True)
         )

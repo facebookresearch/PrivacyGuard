@@ -70,7 +70,9 @@ def _get_parser(language: str) -> Parser:  # pyre-ignore[11]
             f"Unsupported language '{language}'. Supported: {sorted(AVAILABLE_LANGS)}"
         )
     ts_language = Language(
-        importlib.resources.files("codebleu") / "my-languages.so", lang_key
+        # pyrefly: ignore [bad-argument-type]
+        importlib.resources.files("codebleu") / "my-languages.so",
+        lang_key,
     )
     # pyre-ignore[16]: Module `tree_sitter` has no attribute `Parser`.
     parser = Parser()

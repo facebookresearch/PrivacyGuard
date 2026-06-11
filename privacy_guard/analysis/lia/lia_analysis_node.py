@@ -125,8 +125,11 @@ class LIAAnalysisNode(AnalysisNode):
             Tuple[torch.Tensor, torch.Tensor]: scores for samples with training labels and reconstructed labels
         """
 
+        # pyrefly: ignore [missing-attribute]
         received_labels = self._analysis_input.received_labels[i]
+        # pyrefly: ignore [missing-attribute]
         y1_probs = self._analysis_input.predictions_y1_generation
+        # pyrefly: ignore [missing-attribute]
         predictions = self._analysis_input.predictions
 
         if self.score_computation_function is not None:
@@ -142,6 +145,7 @@ class LIAAnalysisNode(AnalysisNode):
                 np.log(prob_train + 1e-8) - np.log(prob_reconstruct + 1e-8)
             ) * prob_diff_label**self._power
 
+        # pyrefly: ignore [missing-attribute]
         true_bits = self._analysis_input.true_bits[i]
         scores_train = torch.tensor(scores[true_bits == 0])
         scores_test = torch.tensor(scores[true_bits == 1])
@@ -152,7 +156,9 @@ class LIAAnalysisNode(AnalysisNode):
         """Run LIA analysis"""
 
         error_thresholds = np.linspace(0.01, 1, 100)
+        # pyrefly: ignore [missing-attribute]
         num_resampling = self._analysis_input.y1.shape[0]
+        # pyrefly: ignore [missing-attribute]
         num_samples = self._analysis_input.y1.shape[1]
 
         # run analysis for each game instance
@@ -221,9 +227,12 @@ class LIAAnalysisNode(AnalysisNode):
             eps_at_tpr_bounds=(list(eps_tpr_lb), list(eps_tpr_ub)),
             eps_at_fpr_bounds=(list(eps_fpr_lb), list(eps_fpr_ub)),
             data_size=num_samples,
+            # pyrefly: ignore [missing-attribute]
             label_mean=np.mean(self._analysis_input.y0),
+            # pyrefly: ignore [missing-attribute]
             prediction_mean=np.mean(self._analysis_input.predictions),
             prediction_y1_generation_mean=np.mean(
+                # pyrefly: ignore [missing-attribute]
                 self._analysis_input.predictions_y1_generation
             ),
         )

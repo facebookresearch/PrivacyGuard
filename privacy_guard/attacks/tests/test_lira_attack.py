@@ -66,12 +66,15 @@ class TestLiraAttack(unittest.TestCase):
             "score_std_in": {"0": 0.1, "1": 0.15, "2": 0.2, "3": 0.25, "4": 0.3},
             "score_std_out": {"0": 0.05, "1": 0.1, "2": 0.15, "3": 0.2, "4": 0.25},
         }
+        # pyrefly: ignore [bad-assignment]
         self.df_train_merge = pd.DataFrame.from_dict(self.df_train_merge)
 
         self.user_id_key = "user_id"
 
         self.lira_attack = LiraAttack(
+            # pyrefly: ignore [bad-argument-type]
             df_train_merge=self.df_train_merge,
+            # pyrefly: ignore [bad-argument-type]
             df_test_merge=self.df_train_merge,
             row_aggregation=AggregationType.MAX,
             use_fixed_variance=True,
@@ -79,7 +82,9 @@ class TestLiraAttack(unittest.TestCase):
         )
 
         self.lira_attack_no_fixed_variance = LiraAttack(
+            # pyrefly: ignore [bad-argument-type]
             df_train_merge=self.df_train_merge,
+            # pyrefly: ignore [bad-argument-type]
             df_test_merge=self.df_train_merge,
             row_aggregation=AggregationType.MAX,
             use_fixed_variance=False,
@@ -108,7 +113,9 @@ class TestLiraAttack(unittest.TestCase):
         """Test _get_std_dev with std_dev_type='global'"""
         # Setup
         attack = LiraAttack(
+            # pyrefly: ignore [bad-argument-type]
             df_train_merge=self.df_train_merge,
+            # pyrefly: ignore [bad-argument-type]
             df_test_merge=self.df_train_merge,
             row_aggregation=AggregationType.MAX,
             std_dev_type="global",
@@ -122,7 +129,9 @@ class TestLiraAttack(unittest.TestCase):
         # Calculate expected standard deviation of all score_orig values
         expected_std = pd.concat(
             [
+                # pyrefly: ignore [missing-attribute]
                 self.df_train_merge.score_orig,
+                # pyrefly: ignore [missing-attribute]
                 self.df_train_merge.score_orig,  # df_test_merge is same as df_train_merge in this test
             ]
         ).std()
@@ -137,7 +146,9 @@ class TestLiraAttack(unittest.TestCase):
         """Test _get_std_dev with std_dev_type='shadows_in' and online_attack=False"""
         # Setup
         attack = LiraAttack(
+            # pyrefly: ignore [bad-argument-type]
             df_train_merge=self.df_train_merge,
+            # pyrefly: ignore [bad-argument-type]
             df_test_merge=self.df_train_merge,
             row_aggregation=AggregationType.MAX,
             std_dev_type="shadows_in",
@@ -152,7 +163,9 @@ class TestLiraAttack(unittest.TestCase):
         # Calculate expected mean of all score_std values
         expected_std = pd.concat(
             [
+                # pyrefly: ignore [missing-attribute]
                 self.df_train_merge.score_std,
+                # pyrefly: ignore [missing-attribute]
                 self.df_train_merge.score_std,  # df_test_merge is same as df_train_merge in this test
             ]
         ).mean()
@@ -167,7 +180,9 @@ class TestLiraAttack(unittest.TestCase):
         """Test _get_std_dev with std_dev_type='shadows_in' and online_attack=True"""
         # Setup
         attack = LiraAttack(
+            # pyrefly: ignore [bad-argument-type]
             df_train_merge=self.df_train_merge,
+            # pyrefly: ignore [bad-argument-type]
             df_test_merge=self.df_train_merge,
             row_aggregation=AggregationType.MAX,
             std_dev_type="shadows_in",
@@ -182,7 +197,9 @@ class TestLiraAttack(unittest.TestCase):
         # Calculate expected mean of all score_std_in values
         expected_std = pd.concat(
             [
+                # pyrefly: ignore [missing-attribute]
                 self.df_train_merge.score_std_in,
+                # pyrefly: ignore [missing-attribute]
                 self.df_train_merge.score_std_in,  # df_test_merge is same as df_train_merge in this test
             ]
         ).mean()
@@ -197,7 +214,9 @@ class TestLiraAttack(unittest.TestCase):
         """Test _get_std_dev with std_dev_type='shadows_out' and online_attack=False"""
         # Setup
         attack = LiraAttack(
+            # pyrefly: ignore [bad-argument-type]
             df_train_merge=self.df_train_merge,
+            # pyrefly: ignore [bad-argument-type]
             df_test_merge=self.df_train_merge,
             row_aggregation=AggregationType.MAX,
             std_dev_type="shadows_out",
@@ -212,7 +231,9 @@ class TestLiraAttack(unittest.TestCase):
         # Calculate expected mean of all score_std values
         expected_std = pd.concat(
             [
+                # pyrefly: ignore [missing-attribute]
                 self.df_train_merge.score_std,
+                # pyrefly: ignore [missing-attribute]
                 self.df_train_merge.score_std,  # df_test_merge is same as df_train_merge in this test
             ]
         ).mean()
@@ -227,7 +248,9 @@ class TestLiraAttack(unittest.TestCase):
         """Test _get_std_dev with std_dev_type='shadows_out' and online_attack=True"""
         # Setup
         attack = LiraAttack(
+            # pyrefly: ignore [bad-argument-type]
             df_train_merge=self.df_train_merge,
+            # pyrefly: ignore [bad-argument-type]
             df_test_merge=self.df_train_merge,
             row_aggregation=AggregationType.MAX,
             std_dev_type="shadows_out",
@@ -242,7 +265,9 @@ class TestLiraAttack(unittest.TestCase):
         # Calculate expected mean of all score_std_out values
         expected_std = pd.concat(
             [
+                # pyrefly: ignore [missing-attribute]
                 self.df_train_merge.score_std_out,
+                # pyrefly: ignore [missing-attribute]
                 self.df_train_merge.score_std_out,  # df_test_merge is same as df_train_merge in this test
             ]
         ).mean()
@@ -257,7 +282,9 @@ class TestLiraAttack(unittest.TestCase):
         """Test _get_std_dev with std_dev_type='mix' and online_attack=True"""
         # Setup
         attack = LiraAttack(
+            # pyrefly: ignore [bad-argument-type]
             df_train_merge=self.df_train_merge,
+            # pyrefly: ignore [bad-argument-type]
             df_test_merge=self.df_train_merge,
             row_aggregation=AggregationType.MAX,
             std_dev_type="mix",
@@ -272,7 +299,9 @@ class TestLiraAttack(unittest.TestCase):
         # Calculate expected mean of all score_std_in values for std_in
         expected_std_in = pd.concat(
             [
+                # pyrefly: ignore [missing-attribute]
                 self.df_train_merge.score_std_in,
+                # pyrefly: ignore [missing-attribute]
                 self.df_train_merge.score_std_in,  # df_test_merge is same as df_train_merge in this test
             ]
         ).mean()
@@ -280,7 +309,9 @@ class TestLiraAttack(unittest.TestCase):
         # Calculate expected mean of all score_std_out values for std_out
         expected_std_out = pd.concat(
             [
+                # pyrefly: ignore [missing-attribute]
                 self.df_train_merge.score_std_out,
+                # pyrefly: ignore [missing-attribute]
                 self.df_train_merge.score_std_out,  # df_test_merge is same as df_train_merge in this test
             ]
         ).mean()
@@ -295,7 +326,9 @@ class TestLiraAttack(unittest.TestCase):
         """Test _get_std_dev with std_dev_type='mix' and online_attack=False raises ValueError"""
         # Setup
         attack = LiraAttack(
+            # pyrefly: ignore [bad-argument-type]
             df_train_merge=self.df_train_merge,
+            # pyrefly: ignore [bad-argument-type]
             df_test_merge=self.df_train_merge,
             row_aggregation=AggregationType.MAX,
             std_dev_type="mix",
@@ -316,7 +349,9 @@ class TestLiraAttack(unittest.TestCase):
         """Test _get_std_dev with invalid std_dev_type raises ValueError"""
         # Setup
         attack = LiraAttack(
+            # pyrefly: ignore [bad-argument-type]
             df_train_merge=self.df_train_merge,
+            # pyrefly: ignore [bad-argument-type]
             df_test_merge=self.df_train_merge,
             row_aggregation=AggregationType.MAX,
             std_dev_type="invalid_type",
@@ -333,11 +368,15 @@ class TestLiraAttack(unittest.TestCase):
         """Test that run_attack drops rows with NaN values in df_train_merge after logpdf computation."""
         # Setup: create training data with NaN in score_orig so logpdf produces NaN
         df_train_with_nan = self.df_train_merge.copy()
+        # pyrefly: ignore [missing-attribute]
         df_train_with_nan.loc["0", "score_orig"] = np.nan
+        # pyrefly: ignore [missing-attribute]
         df_train_with_nan.loc["2", "score_orig"] = np.nan
 
         attack = LiraAttack(
+            # pyrefly: ignore [bad-argument-type]
             df_train_merge=df_train_with_nan,
+            # pyrefly: ignore [bad-argument-type]
             df_test_merge=self.df_train_merge,
             row_aggregation=AggregationType.MAX,
             use_fixed_variance=True,
@@ -358,10 +397,13 @@ class TestLiraAttack(unittest.TestCase):
         """Test that run_attack drops rows with NaN values in df_test_merge after logpdf computation."""
         # Setup: create test data with NaN in score_orig so logpdf produces NaN
         df_test_with_nan = self.df_train_merge.copy()
+        # pyrefly: ignore [missing-attribute]
         df_test_with_nan.loc["1", "score_orig"] = np.nan
 
         attack = LiraAttack(
+            # pyrefly: ignore [bad-argument-type]
             df_train_merge=self.df_train_merge,
+            # pyrefly: ignore [bad-argument-type]
             df_test_merge=df_test_with_nan,
             row_aggregation=AggregationType.MAX,
             use_fixed_variance=True,
@@ -381,11 +423,15 @@ class TestLiraAttack(unittest.TestCase):
         """Test that run_attack drops NaN rows for online attack mode."""
         # Setup: create data with NaN in score_mean_in to produce NaN in logpdf
         df_train_with_nan = self.df_train_merge.copy()
+        # pyrefly: ignore [missing-attribute]
         df_train_with_nan.loc["0", "score_mean_in"] = np.nan
+        # pyrefly: ignore [missing-attribute]
         df_train_with_nan.loc["3", "score_mean_out"] = np.nan
 
         attack = LiraAttack(
+            # pyrefly: ignore [bad-argument-type]
             df_train_merge=df_train_with_nan,
+            # pyrefly: ignore [bad-argument-type]
             df_test_merge=self.df_train_merge,
             row_aggregation=AggregationType.MAX,
             use_fixed_variance=True,
@@ -406,7 +452,9 @@ class TestLiraAttack(unittest.TestCase):
         """Test that run_attack preserves all rows when no NaN values are present."""
         # Setup: use clean data (no NaN)
         attack = LiraAttack(
+            # pyrefly: ignore [bad-argument-type]
             df_train_merge=self.df_train_merge,
+            # pyrefly: ignore [bad-argument-type]
             df_test_merge=self.df_train_merge,
             row_aggregation=AggregationType.MAX,
             use_fixed_variance=True,

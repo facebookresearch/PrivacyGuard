@@ -40,6 +40,7 @@ class TestReferenceModelComparisonScript(unittest.TestCase):
             prefix="test_target", suffix=".jsonl", mode="w"
         )
         self.temp_target_file_name = self.temp_target_file.name
+        # pyrefly: ignore [no-matching-overload]
         self.temp_target_file.write(
             pd.DataFrame(self.target_data).to_json(orient="records", lines=True)
         )
@@ -50,6 +51,7 @@ class TestReferenceModelComparisonScript(unittest.TestCase):
             prefix="test_reference", suffix=".jsonl", mode="w"
         )
         self.temp_reference_file_name = self.temp_reference_file.name
+        # pyrefly: ignore [no-matching-overload]
         self.temp_reference_file.write(
             pd.DataFrame(self.reference_data).to_json(orient="records", lines=True)
         )
@@ -112,6 +114,7 @@ class TestReferenceModelComparisonScript(unittest.TestCase):
             prefix="test_target_custom", suffix=".jsonl", mode="w"
         )
         temp_target_file_name = temp_target_file.name
+        # pyrefly: ignore [no-matching-overload]
         temp_target_file.write(
             pd.DataFrame(target_data).to_json(orient="records", lines=True)
         )
@@ -122,6 +125,7 @@ class TestReferenceModelComparisonScript(unittest.TestCase):
             prefix="test_reference_custom", suffix=".jsonl", mode="w"
         )
         temp_reference_file_name = temp_reference_file.name
+        # pyrefly: ignore [no-matching-overload]
         temp_reference_file.write(
             pd.DataFrame(reference_data).to_json(orient="records", lines=True)
         )
