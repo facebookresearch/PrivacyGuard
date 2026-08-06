@@ -4,6 +4,24 @@ The release log for PrivacyGuard.
 
 
 
+## [Unreleased]
+
+#### New Features
+* LLM-as-a-judge code similarity analysis
+    * `LLMJudgeNode` scores reference/generated code pairs from the raw text
+      responses of a judge model. The node runs no model inference: judge
+      responses are produced by the caller and passed in via
+      `LLMJudgeAnalysisInput`, keeping scoring deterministic and re-runnable.
+      Unparseable responses become NaN and are excluded from the reported
+      averages rather than scored 0.0.
+    * Three judge prompts with matching response parsers, available through
+      `get_judge_prompts()`:
+        * `song_2024` ([Song et al., 2024](https://aclanthology.org/2024.acl-short.3.pdf))
+        * `nikiema_2025` ([Nikiema et al., 2025](https://arxiv.org/pdf/2509.09714))
+        * `functional_equivalence` ([Meeus et al., 2026](https://arxiv.org/pdf/2606.12764))
+
+
+
 ## [0.0.1] -- Oct 1, 2025
 
 #### New Features

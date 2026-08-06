@@ -59,6 +59,46 @@ class CodeSimilarityAnalysisInput(BaseAnalysisInput):
         return self._df_train_user
 
 
+class LLMJudgeAnalysisInput(BaseAnalysisInput):
+    """
+    Analysis input for LLM-as-a-judge code similarity analysis.
+
+    Stores a generation DataFrame containing target and model-generated code
+    strings along with the raw text response of a judge model.  Judge
+    responses are produced outside PrivacyGuard, using the model and
+    inference method of your choice, so that scoring stays deterministic
+    and re-runnable.  See
+    :mod:`privacy_guard.analysis.code_similarity.llm_judge_prompts` for the
+    prompts to render and how to obtain the responses.
+
+    Required columns:
+        - target_code_string: the original target code
+        - model_generated_code_string: the model's generated code
+        - judge_raw_response: the judge model's raw text response
+
+    Args:
+        generation_df: DataFrame containing code strings and judge responses
+    """
+
+    REQUIRED_COLUMNS: list[str] = [
+        "target_code_string",
+        "model_generated_code_string",
+        "judge_raw_response",
+    ]
+
+    def __init__(self, generation_df: pd.DataFrame) -> None:
+        missing = set(self.REQUIRED_COLUMNS) - set(generation_df.columns)
+        if missing:
+            raise ValueError(f"Missing required columns in generation_df: {missing}")
+
+        super().__init__(df_train_user=generation_df, df_test_user=pd.DataFrame())
+
+    @property
+    def generation_df(self) -> pd.DataFrame:
+        """Property accessor for the generation DataFrame."""
+        return self._df_train_user
+
+
 class CodeBleuAnalysisInput(BaseAnalysisInput):
     """
     Analysis input for CodeBLEU similarity analysis.
