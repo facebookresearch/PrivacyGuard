@@ -9,7 +9,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# pyre-strict
 import logging
 from dataclasses import dataclass
 from typing import Dict

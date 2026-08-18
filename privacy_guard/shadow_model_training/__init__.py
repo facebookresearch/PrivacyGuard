@@ -1,4 +1,3 @@
-# pyre-strict
 # Copyright (c) Meta Platforms, Inc. and affiliates.
 # Shadow model training package for privacy attacks.
 

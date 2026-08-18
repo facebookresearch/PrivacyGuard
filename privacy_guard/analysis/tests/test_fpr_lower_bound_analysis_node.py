@@ -9,7 +9,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# pyre-strict
 
 import numpy as np
 from privacy_guard.analysis.mia.aggregate_analysis_input import (

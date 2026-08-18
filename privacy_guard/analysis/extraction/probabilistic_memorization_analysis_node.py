@@ -9,7 +9,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# pyre-strict
 import math
 from dataclasses import dataclass
 from typing import cast, Dict, List, Optional
