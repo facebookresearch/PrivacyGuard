@@ -1,0 +1,453 @@
+/* PrivacyGuard Web Playground — Global Styles */
+
+:root {
+  --color-bg: #ffffff;
+  --color-text: #1a1a2e;
+  --color-muted: #6b7280;
+  --color-accent: #2563eb;
+  --color-accent-hover: #1d4ed8;
+  --color-border: #e5e7eb;
+  --color-card-bg: #f9fafb;
+  --color-error-bg: #fef2f2;
+  --color-error-text: #991b1b;
+  --color-error-border: #fca5a5;
+  --radius: 8px;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+    "Helvetica Neue", Arial, sans-serif;
+  color: var(--color-text);
+  background: var(--color-bg);
+  line-height: 1.5;
+}
+
+/* --- Tab Bar --- */
+
+.tab-bar {
+  display: flex;
+  gap: 0;
+  border-bottom: 2px solid var(--color-border);
+  background: var(--color-card-bg);
+  padding: 0 1rem;
+}
+
+.tab-bar a {
+  padding: 0.75rem 1.25rem;
+  text-decoration: none;
+  color: var(--color-muted);
+  font-weight: 500;
+  font-size: 0.9rem;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -2px;
+  transition: color 0.15s, border-color 0.15s;
+}
+
+.tab-bar a:hover {
+  color: var(--color-text);
+}
+
+.tab-bar a.active {
+  color: var(--color-accent);
+  border-bottom-color: var(--color-accent);
+}
+
+/* --- Tab Content --- */
+
+.tab-content {
+  max-width: 960px;
+  margin: 0 auto;
+  padding: 2rem 1.5rem;
+}
+
+/* --- Parameter Grid --- */
+
+.param-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+@media (max-width: 640px) {
+  .param-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+.param-grid label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: var(--color-text);
+}
+
+/* --- Results Card --- */
+
+.results-card {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  padding: 1.5rem;
+  margin-top: 1.5rem;
+  background: var(--color-card-bg);
+}
+
+.results-card h3 {
+  margin: 0 0 1rem;
+  font-size: 1.1rem;
+}
+
+.results-card h4 {
+  margin: 0 0 0.5rem;
+  font-size: 0.95rem;
+  color: var(--color-muted);
+}
+
+/* --- Metrics Grid --- */
+
+.metrics-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 1rem;
+}
+
+.metric {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  padding: 0.75rem;
+  background: var(--color-bg);
+  border: 1px solid var(--color-border);
+  border-radius: calc(var(--radius) - 2px);
+}
+
+.metric-label {
+  font-size: 0.75rem;
+  color: var(--color-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  font-weight: 600;
+}
+
+.metric-value {
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: var(--color-text);
+  font-variant-numeric: tabular-nums;
+}
+
+/* --- Error --- */
+
+.error {
+  background: var(--color-error-bg);
+  color: var(--color-error-text);
+  border: 1px solid var(--color-error-border);
+  border-radius: var(--radius);
+  padding: 0.75rem 1rem;
+  margin-top: 1rem;
+  font-size: 0.9rem;
+}
+
+/* --- Loading --- */
+
+.loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem;
+  color: var(--color-muted);
+  font-size: 0.95rem;
+}
+
+/* --- Buttons --- */
+
+button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.6rem 1.25rem;
+  font-size: 0.9rem;
+  font-weight: 600;
+  border: none;
+  border-radius: var(--radius);
+  background: var(--color-accent);
+  color: #ffffff;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+button:hover:not(:disabled) {
+  background: var(--color-accent-hover);
+}
+
+button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* --- Inputs --- */
+
+input,
+select {
+  padding: 0.5rem 0.75rem;
+  font-size: 0.9rem;
+  border: 1px solid var(--color-border);
+  border-radius: calc(var(--radius) - 2px);
+  background: var(--color-bg);
+  color: var(--color-text);
+  transition: border-color 0.15s;
+  width: 100%;
+}
+
+input:focus,
+select:focus {
+  outline: none;
+  border-color: var(--color-accent);
+  box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.15);
+}
+
+/* --- Collapsible (details/summary) --- */
+
+details {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  padding: 0.75rem 1rem;
+  margin-bottom: 1.5rem;
+}
+
+details[open] {
+  padding-bottom: 1rem;
+}
+
+summary {
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 0.9rem;
+  color: var(--color-accent);
+  user-select: none;
+}
+
+summary:hover {
+  color: var(--color-accent-hover);
+}
+
+details[open] summary {
+  margin-bottom: 1rem;
+}
+
+/* --- Landing Page --- */
+
+.landing {
+  max-width: 960px;
+  margin: 0 auto;
+  padding: 2rem 1.5rem;
+}
+
+.hero {
+  text-align: center;
+  padding: 3rem 0 2rem;
+}
+
+.hero h1 {
+  font-size: 2.25rem;
+  margin: 0 0 0.5rem;
+}
+
+.tagline {
+  font-size: 1.25rem;
+  color: var(--color-muted);
+  margin: 0 0 1rem;
+}
+
+.privacy-note {
+  font-style: italic;
+  color: var(--color-muted);
+  font-size: 0.9rem;
+}
+
+/* --- Attack Cards Grid --- */
+
+.attack-cards {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1.25rem;
+  margin-top: 1rem;
+}
+
+@media (max-width: 768px) {
+  .attack-cards {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 480px) {
+  .attack-cards {
+    grid-template-columns: 1fr;
+  }
+}
+
+.attack-card {
+  display: block;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  padding: 1.25rem;
+  background: var(--color-card-bg);
+  text-decoration: none;
+  color: var(--color-text);
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+.attack-card:hover {
+  border-color: var(--color-accent);
+  box-shadow: 0 2px 8px rgba(37, 99, 235, 0.1);
+}
+
+.attack-card h3 {
+  margin: 0 0 0.5rem;
+  font-size: 1rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.attack-card p {
+  margin: 0;
+  font-size: 0.85rem;
+  color: var(--color-muted);
+}
+
+.attack-card.coming-soon {
+  opacity: 0.6;
+}
+
+/* --- Badge --- */
+
+.badge {
+  display: inline-block;
+  font-size: 0.65rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 0.15rem 0.5rem;
+  border-radius: 999px;
+  background: var(--color-muted);
+  color: #ffffff;
+  white-space: nowrap;
+}
+
+/* --- Coming Soon (tab content) --- */
+
+.results-card.coming-soon {
+  text-align: center;
+  color: var(--color-muted);
+}
+
+.results-card.coming-soon h3 {
+  color: var(--color-text);
+}
+
+/* --- Sub Tabs --- */
+
+.sub-tabs {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 1.5rem;
+}
+
+.sub-tabs button {
+  background: transparent;
+  color: var(--color-muted);
+  border: 1px solid var(--color-border);
+  font-size: 0.85rem;
+  padding: 0.4rem 1rem;
+}
+
+.sub-tabs button:hover:not(:disabled) {
+  background: var(--color-card-bg);
+  color: var(--color-text);
+}
+
+.sub-tabs button.active {
+  background: var(--color-accent);
+  color: #ffffff;
+  border-color: var(--color-accent);
+}
+
+/* --- Text Input Group (Text Similarity) --- */
+
+.text-input-group {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.text-input-group label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: var(--color-text);
+}
+
+.text-input-group textarea {
+  padding: 0.5rem 0.75rem;
+  font-size: 0.9rem;
+  font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+  border: 1px solid var(--color-border);
+  border-radius: calc(var(--radius) - 2px);
+  background: var(--color-bg);
+  color: var(--color-text);
+  resize: vertical;
+  transition: border-color 0.15s;
+}
+
+.text-input-group textarea:focus {
+  outline: none;
+  border-color: var(--color-accent);
+  box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.15);
+}
+
+/* --- Secondary Button --- */
+
+button.secondary {
+  background: transparent;
+  color: var(--color-accent);
+  border: 1px solid var(--color-accent);
+}
+
+button.secondary:hover:not(:disabled) {
+  background: var(--color-accent);
+  color: #ffffff;
+}
+
+/* --- Export Buttons --- */
+
+.export-buttons {
+  display: flex;
+  gap: 0.75rem;
+  margin-top: 1.25rem;
+}
+
+.export-buttons button {
+  font-size: 0.8rem;
+  padding: 0.4rem 1rem;
+  background: transparent;
+  color: var(--color-accent);
+  border: 1px solid var(--color-accent);
+}
+
+.export-buttons button:hover:not(:disabled) {
+  background: var(--color-accent);
+  color: #ffffff;
+}
