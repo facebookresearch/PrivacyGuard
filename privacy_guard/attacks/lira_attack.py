@@ -49,6 +49,7 @@ class LiraAttack(BaseAttack):
         std_dev_type: str = "global",
         online_attack: bool = False,
         offline_shadows_evals_in: bool = False,
+        aggregation_keys: list[str] | None = None,
     ) -> None:
         """
         args:
@@ -59,6 +60,7 @@ class LiraAttack(BaseAttack):
 
             row_aggregation: specifies user aggregation strategy
             user_id_key: key corresponding to user id, used for aggregating scores.
+            aggregation_keys: columns used to group rows. Defaults to user_id_key.
 
             used_fixed_variance: whether to use fixed variance or not,
                 normalizing using the orig scores of the attack.
@@ -89,6 +91,7 @@ class LiraAttack(BaseAttack):
         self.online_attack = online_attack
         self.offline_shadows_evals_in = offline_shadows_evals_in
         self.use_fixed_variance = use_fixed_variance
+        self.aggregation_keys = aggregation_keys
 
     def _get_std_dev(self) -> Tuple[Union[float, Series], Union[float, Series]]:
         """
@@ -227,6 +230,7 @@ class LiraAttack(BaseAttack):
             df_train_merge=self.df_train_merge,
             df_test_merge=self.df_test_merge,
             user_id_key=self.user_id_key,
+            aggregation_keys=self.aggregation_keys,
         )
 
         return analysis_input
