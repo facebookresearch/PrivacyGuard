@@ -43,6 +43,7 @@ class AggregateAnalysisInput(BaseAnalysisInput):
         df_train_merge: train dataframe, returned from attack
         df_test_merge: test dataframe, returned from attack
         user_id_key: key of dataframes containing the user ids, used for grouping and aggregating results.
+        aggregation_keys: columns used to group rows. Defaults to user_id_key.
     """
 
     REQUIRED_COLUMNS = {
@@ -55,13 +56,17 @@ class AggregateAnalysisInput(BaseAnalysisInput):
         df_train_merge: pd.DataFrame,
         df_test_merge: pd.DataFrame,
         user_id_key: str,
+        aggregation_keys: list[str] | None = None,
     ) -> None:
         self._df_train_merge = df_train_merge
         self._df_test_merge = df_test_merge
         self._row_aggregation = row_aggregation
         self._user_id_key = user_id_key
+        self._aggregation_keys = aggregation_keys or [user_id_key]
 
-        self.required_columns: Set[str] = self.REQUIRED_COLUMNS | {user_id_key}
+        self.required_columns: Set[str] = self.REQUIRED_COLUMNS | set(
+            self._aggregation_keys
+        )
 
         self.check_required_columns(df_train_merge)
         self.check_required_columns(df_test_merge)
@@ -106,7 +111,7 @@ class AggregateAnalysisInput(BaseAnalysisInput):
         """
         Aggregates self.df_train_merge and self.df_test_merge
         using the strategy specified in self.row_aggregation,
-        aggregating on the column user_id_key.
+        aggregating on aggregation_keys.
         Returns:
             a tuple of the aggregated dataframes
             (df_train_user, df_test_user)
@@ -121,21 +126,27 @@ class AggregateAnalysisInput(BaseAnalysisInput):
             return (df_train_merge, df_test_merge)
         elif row_aggregation == AggregationType.MAX:
             df_train_user = df_train_merge.groupby(
-                [self._user_id_key], sort=False
+                self._aggregation_keys, sort=False
             ).max()
-            df_test_user = df_test_merge.groupby([self._user_id_key], sort=False).max()
+            df_test_user = df_test_merge.groupby(
+                self._aggregation_keys, sort=False
+            ).max()
             return (df_train_user, df_test_user)
         elif row_aggregation == AggregationType.MIN:
             df_train_user = df_train_merge.groupby(
-                [self._user_id_key], sort=False
+                self._aggregation_keys, sort=False
             ).min()
-            df_test_user = df_test_merge.groupby([self._user_id_key], sort=False).min()
+            df_test_user = df_test_merge.groupby(
+                self._aggregation_keys, sort=False
+            ).min()
             return (df_train_user, df_test_user)
         elif row_aggregation == AggregationType.AVG:
             df_train_user = df_train_merge.groupby(
-                [self._user_id_key], sort=False
+                self._aggregation_keys, sort=False
             ).mean()
-            df_test_user = df_test_merge.groupby([self._user_id_key], sort=False).mean()
+            df_test_user = df_test_merge.groupby(
+                self._aggregation_keys, sort=False
+            ).mean()
             return (df_train_user, df_test_user)
         elif row_aggregation == AggregationType.GMEAN:
             if df_train_merge["score"].min() < 0 or df_test_merge["score"].min() < 0:
@@ -143,15 +154,15 @@ class AggregateAnalysisInput(BaseAnalysisInput):
                     "Gmean (geometric mean) aggregation assumes non-negative values. There are negative per-impression scores in the data which will be clipped to 1e-3. This can destoy the meaning of gmean. We recommend using a different type of user score aggregation."
                 )
             df_train_user = pd.DataFrame(
-                df_train_merge[["score", self._user_id_key]]
-                .groupby(self._user_id_key, sort=False)
+                df_train_merge[["score", *self._aggregation_keys]]
+                .groupby(self._aggregation_keys, sort=False)
                 .score.apply(lambda x: gmean(x.clip(lower=1e-3))),
                 columns=["score"],
             )
 
             df_test_user = pd.DataFrame(
-                df_test_merge[["score", self._user_id_key]]
-                .groupby([self._user_id_key], sort=False)
+                df_test_merge[["score", *self._aggregation_keys]]
+                .groupby(self._aggregation_keys, sort=False)
                 .score.apply(lambda x: gmean(x.clip(lower=1e-3))),
                 columns=["score"],
             )
@@ -159,14 +170,14 @@ class AggregateAnalysisInput(BaseAnalysisInput):
         # user aggregation is logsumexp
         else:
             df_train_user = pd.DataFrame(
-                df_train_merge[["score", self._user_id_key]]
-                .groupby([self._user_id_key], sort=False)
+                df_train_merge[["score", *self._aggregation_keys]]
+                .groupby(self._aggregation_keys, sort=False)
                 .score.apply(logsumexp),
                 columns=["score"],
             )
             df_test_user = pd.DataFrame(
-                df_test_merge[["score", self._user_id_key]]
-                .groupby([self._user_id_key], sort=False)
+                df_test_merge[["score", *self._aggregation_keys]]
+                .groupby(self._aggregation_keys, sort=False)
                 .score.apply(logsumexp),
                 columns=["score"],
             )

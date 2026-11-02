@@ -101,3 +101,34 @@ class TestAnalysisInput(BaseTestAnalysisNode):
 
         self.assertTrue(df_train_user_manual.equals(analysis_input.df_train_user))
         self.assertTrue(df_test_user_manual.equals(analysis_input.df_test_user))
+
+    def test_aggregation_with_multiple_keys(self) -> None:
+        df_train_merge = pd.DataFrame(
+            {
+                "user_id": [123456, 123456, 123456],
+                "eval_date": ["2026-08-27", "2026-08-27", "2026-08-28"],
+                "score": [0.7, 0.8, 0.6],
+            }
+        )
+        df_test_merge = pd.DataFrame(
+            {
+                "user_id": [567890, 567890, 567890],
+                "eval_date": ["2026-08-27", "2026-08-27", "2026-08-28"],
+                "score": [0.2, 0.3, 0.4],
+            }
+        )
+
+        analysis_input = AggregateAnalysisInput(
+            row_aggregation=AggregationType.MAX,
+            df_train_merge=df_train_merge,
+            df_test_merge=df_test_merge,
+            user_id_key=self.user_id_key,
+            aggregation_keys=[self.user_id_key, "eval_date"],
+        )
+
+        self.assertEqual(
+            analysis_input.df_train_user.index.names,
+            [self.user_id_key, "eval_date"],
+        )
+        self.assertEqual(analysis_input.df_train_user["score"].tolist(), [0.8, 0.6])
+        self.assertEqual(analysis_input.df_test_user["score"].tolist(), [0.3, 0.4])
