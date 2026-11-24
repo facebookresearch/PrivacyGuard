@@ -19,6 +19,15 @@ The release log for PrivacyGuard.
         * `song_2024` ([Song et al., 2024](https://aclanthology.org/2024.acl-short.3.pdf))
         * `nikiema_2025` ([Nikiema et al., 2025](https://arxiv.org/pdf/2509.09714))
         * `functional_equivalence` ([Meeus et al., 2026](https://arxiv.org/pdf/2606.12764))
+* Experimental Jacobian-lens (J-lens) layer-by-token preview (optional)
+    * `privacy_guard.analysis.jacobian_lens` fits a Jacobian lens on a frozen decoder
+      model, reads out ranked vocabulary tokens per (layer, token position) next to an
+      ordinary logit lens and the model's actual output, and runs a controlled concept
+      substitution experiment with no-op, matched-norm and restoration controls.
+    * `JacobianLensPreviewNode` summarizes a `privacyguard.jlens_preview/v1` receipt;
+      the viewer writes one self-contained offline HTML page.
+    * A research visualization, not a privacy metric. Install with
+      `pip install -e ".[jacobian_lens]"`; see `privacy_guard/analysis/jacobian_lens/README.md`.
 
 
 

@@ -71,6 +71,15 @@ dev = [
     "mdformat-myst",
 ]
 
+jacobian_lens = [
+    # Muse Glimmer (`muse_glimmer`) ships in transformers 5.15; 5.40 removes the
+    # `past_key_values` mask argument the adapter passes.
+    'transformers>=5.15,<5.40',
+    'safetensors',
+    # Calibration corpus (WikiText-103 parquet) for lens fitting.
+    'pyarrow',
+]
+
 notebook = [
 
 ]
