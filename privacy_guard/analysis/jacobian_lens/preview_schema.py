@@ -103,6 +103,9 @@ FREE_FORM_KEYS: tuple[str, ...] = (
     "display",
 )
 MAX_FREE_FORM_NUMERIC_LEAVES = 1024
+# Absolute or home-relative paths in free-form metadata reveal the producing
+# machine's layout; receipts record placeholders such as CKPT or OUT instead.
+LOCAL_PATH_PATTERN = r"(?:^|(?<=[\s=:,'\"(]))(?:~/|/(?:data|home|Users|tmp|var|mnt|srv|root|opt|scratch)/)\S*"
 
 
 class ReceiptValidationError(ValueError):
@@ -427,6 +430,13 @@ def validate_receipt_dict(data: Mapping[str, Any]) -> None:
     free_form = [data.get(key) for key in FREE_FORM_KEYS] + [
         run.get("direction") for run in data.get("interventions", ())
     ]
+    for value in free_form + _producer_notes(data):
+        path = _find_local_path(value)
+        if path is not None:
+            raise ReceiptValidationError(
+                f"free-form field holds a local filesystem path {path!r}; "
+                "record a placeholder instead"
+            )
     leaves = sum(_count_numeric_leaves(value) for value in free_form)
     if leaves > MAX_FREE_FORM_NUMERIC_LEAVES:
         raise ReceiptValidationError(
@@ -554,8 +564,13 @@ def _validate_tracked(receipt: JLensPreviewReceipt) -> set[int]:
     tracked_ids = [t.token_id for t in receipt.tracked_tokens]
     if len(set(tracked_ids)) != len(tracked_ids):
         raise ReceiptValidationError("tracked_tokens has duplicate token IDs")
-    for token_id in tracked_ids:
-        _require_token_id(receipt, token_id, "tracked_tokens")
+    for token in receipt.tracked_tokens:
+        _require_token_id(receipt, token.token_id, "tracked_tokens")
+        if not any(ch.isalnum() for ch in token.text):
+            raise ReceiptValidationError(
+                f"tracked token {token.token_id} {token.text!r} has no letter or digit; "
+                "a bare piece of a multi-token form is not evidence for its concept"
+            )
     return set(tracked_ids)
 
 
@@ -696,6 +711,33 @@ def _reject_private_payloads(value: Any, path: str) -> None:
         return
     if isinstance(value, float) and not math.isfinite(value):
         raise ReceiptValidationError(f"{path}: non-finite number")
+
+
+def _producer_notes(data: Mapping[str, Any]) -> list[Any]:
+    """Producer-written prose the viewer displays (notes, reasons, definitions)."""
+    runs = list(data.get("interventions") or ())
+    cells = list(data.get("cells") or ()) + [
+        c for run in runs for c in (run.get("readout_cells") or ())
+    ]
+    prompt = data.get("prompt") or {}
+    return (
+        [data.get("score_definition"), data.get("unavailable"), prompt.get("note")]
+        + [run.get(key) for run in runs for key in ("notes", "unavailable_reason")]
+        + [cell.get("unavailable_reason") for cell in cells]
+    )
+
+
+def _find_local_path(value: Any) -> str | None:
+    if isinstance(value, Mapping):
+        value = [str(k) for k in value.keys()] + list(value.values())
+    if isinstance(value, (list, tuple)):
+        return next(
+            (p for p in (_find_local_path(v) for v in value) if p is not None), None
+        )
+    if isinstance(value, str):
+        match = re.search(LOCAL_PATH_PATTERN, value)
+        return None if match is None else match.group(0)
+    return None
 
 
 def _count_numeric_leaves(value: Any) -> int:

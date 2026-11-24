@@ -138,6 +138,22 @@ def _unavailable_run_with_results(d: dict[str, Any]) -> None:
     d["interventions"][2]["readout_cells"] = d["interventions"][0]["readout_cells"]
 
 
+def _whitespace_tracked_token(d: dict[str, Any]) -> None:
+    d["tracked_tokens"][0]["text"] = " "
+
+
+def _local_path_in_code(d: dict[str, Any]) -> None:
+    d["code"]["run_command"] = "python -m x --out-dir /srv/someone/out"
+
+
+def _local_path_as_key(d: dict[str, Any]) -> None:
+    d["display"]["/srv/someone/receipts.json"] = "source"
+
+
+def _local_path_in_notes(d: dict[str, Any]) -> None:
+    d["interventions"][0]["notes"] = "see /srv/someone/ckpt/run3"
+
+
 def _null_interventions(d: dict[str, Any]) -> None:
     d["interventions"] = None
 
@@ -228,6 +244,10 @@ class PreviewSchemaTest(unittest.TestCase):
             "duplicate run name": _duplicate_run_name,
             "reserved run name": _reserved_run_name,
             "unavailable run with results": _unavailable_run_with_results,
+            "whitespace tracked token": _whitespace_tracked_token,
+            "local path in code": _local_path_in_code,
+            "local path as key": _local_path_as_key,
+            "local path in notes": _local_path_in_notes,
             "null interventions": _null_interventions,
             "scalar source layers": _scalar_source_layers,
             "top_k too large": _full_vocab_top_k,
