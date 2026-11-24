@@ -139,15 +139,20 @@ def _prompt_summary(
     }
 
 
-def redact_path_arguments(argv: list[str]) -> list[str]:
-    """Replace local filesystem values (``--flag=/abs/path``) with ``<flag>``."""
-    redacted = []
-    for arg in argv:
-        flag, sep, value = arg.partition("=")
-        if sep and (os.path.isabs(value) or value.startswith("~")):
-            arg = f"{flag}=<{flag.lstrip('-')}>"
-        redacted.append(arg)
-    return redacted
+PATH_ARGUMENTS: frozenset[str] = frozenset(
+    {"checkpoint_dir", "output", "expected_sha256_json", "reference_receipt"}
+)
+
+
+def recorded_arguments(args: argparse.Namespace) -> dict[str, Any]:
+    """Parsed arguments for the receipt; local path values become ``<path>``.
+
+    Raw ``argv`` is never recorded, so no path spelling can leak into it.
+    """
+    return {
+        name: "<path>" if name in PATH_ARGUMENTS and value is not None else value
+        for name, value in sorted(vars(args).items())
+    }
 
 
 def _source_hashes() -> dict[str, str]:
@@ -196,7 +201,7 @@ def main() -> None:
     receipt["load_report"] = report.to_dict()
     receipt["code"] = {
         "privacy_guard_rev": args.code_rev,
-        "argv": redact_path_arguments(sys.argv[1:]),
+        "arguments": recorded_arguments(args),
         "source_sha256": _source_hashes(),
     }
     if args.reference_receipt is not None:
@@ -226,7 +231,15 @@ def _build_receipt(adapter: GlimmerAdapter, args: argparse.Namespace) -> dict[st
         "head_parity": head_parity(adapter, ids),
         "resume_parity": resume_parity(adapter, ids, _ints(args.resume_layers)),
         "gradient_checks": [
-            gradient_checks(adapter, ids, layer, last // 2, last, eps)
+            gradient_checks(
+                adapter,
+                ids,
+                layer,
+                last // 2,
+                last,
+                eps,
+                causal_target_position=last // 2 + 1 if last // 2 + 1 < last else None,
+            )
             for layer in _ints(args.grad_layers)
         ],
     }
