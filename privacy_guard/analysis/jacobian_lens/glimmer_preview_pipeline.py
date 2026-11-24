@@ -35,7 +35,6 @@ nothing here downloads data.
 from __future__ import annotations
 
 import argparse
-import datetime
 import functools
 import hashlib
 import json
@@ -66,7 +65,6 @@ from privacy_guard.analysis.jacobian_lens.lens_fitting import (
     valid_position_mask,
 )
 from privacy_guard.analysis.jacobian_lens.lens_intervention import (
-    assess,
     build_contrast_examples,
     concept_means,
     CONCEPT_POOL,
@@ -75,19 +73,20 @@ from privacy_guard.analysis.jacobian_lens.lens_intervention import (
     layer_directions,
     LayerDirections,
     predeclared_arms,
-    run_arms,
     SUCCESS_RULE,
     UNRELATED_PAIR,
 )
 from privacy_guard.analysis.jacobian_lens.lens_readout import (
     capture_residuals,
-    greedy_continuation,
-    head_parity,
-    rank_scores,
-    readout_cells,
     resolve_tracked,
 )
-from privacy_guard.analysis.jacobian_lens.preview_schema import JLensPreviewReceipt
+from privacy_guard.attacks.jacobian_lens.jacobian_lens_attack import (
+    ConceptEdit,
+    EditResult,
+    JacobianLensAttack,
+    LensPrompt,
+    ReceiptProvenance,
+)
 
 logger: logging.Logger = logging.getLogger(__name__)
 
@@ -586,21 +585,6 @@ def tracked_tokens(
     return list(receipt.values()), list(receipt), answers, surfaces
 
 
-def prompt_record(glue: Glue, key: str) -> dict[str, Any]:
-    text = PROMPTS[key]["text"]
-    ids = glue.encode_ids(text)
-    return {
-        "text": text,
-        "sha256": corpus.sha256_text(text),
-        "rendering": "raw_completion",
-        "token_ids": ids,
-        "token_texts": [glue.decode([i]) for i in ids],
-        "label": key,
-        "note": PROMPTS[key]["note"] + "; BOS prepended explicitly",
-        "bos_token_id": glue.bos_id,
-    }
-
-
 @functools.cache
 def _cached_sha256(path: str) -> str:
     """One hash per file per process: every prompt's receipt names the same lens."""
@@ -715,259 +699,129 @@ def answer_leakage(
     return out
 
 
-def intervention_run(
-    arm: dict[str, Any],
-    contrast_sha: str,
-    concept_from: str = "spider",
-    concept_to: str = "ant",
-    note: str = "",
-) -> dict[str, Any]:
-    """Map one arm result onto the receipt's ``InterventionRun`` fields."""
-    direction = {
-        "concept_from": concept_from,
-        "concept_to": concept_to,
-        "contrast_set_sha256": contrast_sha,
-        "control": arm["control"] or None,
-        "restore": arm["restore"] or None,
-    }
-    answers = arm["answers"]
-    diff = arm["max_abs_logit_diff_vs_baseline"]
-    ranks = ", ".join(
-        f"best {k}-form rank {v['best_rank']}" for k, v in answers.items()
-    )
-    return {
-        "name": arm["name"],
-        "kind": arm["kind"],
-        "method_label": arm["method_label"],
-        "status": arm["status"],
-        "layers": arm["layers"],
-        "positions": arm["positions"],
-        "primary": arm["primary"],
-        "strength": arm["strength"],
-        "delta_norm": arm["delta_norm"],
-        "direction": direction,
-        "next_token_top": arm["next_token_top"],
-        "next_token_tracked": arm["next_token_tracked"],
-        "greedy_text": arm["greedy_text"],
-        "notes": f"{note}{ranks}; greedy answer {arm['greedy_answer']}; max |logit diff| "
-        f"vs baseline {'n/a' if diff is None else format(diff, '.4g')}",
-        "readout_cells": arm["readout_cells"],
-    }
-
-
-def _arm_kwargs(
-    adapter: GlimmerAdapter,
-    glue: Glue,
-    lens: JacobianLens | None,
-    tracked_ids: list[int],
-    answers: dict[str, list[int]],
-    args: argparse.Namespace,
-    downstream: Sequence[int],
-) -> dict[str, Any]:
-    return {
-        "readout_layers": list(range(adapter.n_layers)),
-        "tracked_ids": tracked_ids,
-        "answer_forms": answers,
-        "decode": glue.decode,
-        "lens": lens,
-        "head": adapter.head_fp32,
-        "top_k": args.top_k,
-        "max_new_tokens": args.max_new_tokens,
-        "stop_ids": STOP_IDS,
-        "cell_layers": downstream,
-    }
-
-
-def run_causal(
-    adapter: GlimmerAdapter,
-    glue: Glue,
-    x: torch.Tensor,
-    lens: JacobianLens | None,
-    directions: dict[int, LayerDirections],
-    tracked_ids: list[int],
-    answers: dict[str, list[int]],
-    args: argparse.Namespace,
-    band: Sequence[int] = BAND,
-    downstream: Sequence[int] = DOWNSTREAM,
-    single_layers: Sequence[int] = SINGLE_LAYERS,
-) -> tuple[list[dict[str, Any]], dict[str, Any]]:
-    """All predeclared arms on one prompt and the :data:`SUCCESS_RULE` verdict."""
-    clean = capture_residuals(adapter, x, list(range(adapter.n_layers)))
-    arms = run_arms(
-        adapter,
-        adapter.native_logits,
-        x,
-        predeclared_arms(band, single_layers, STRENGTHS),
-        directions,
-        clean,
-        **_arm_kwargs(adapter, glue, lens, tracked_ids, answers, args, downstream),
-    )
-    verdict = assess(arms, "8", "6", downstream)
-    if not verdict["hooks_effective"]:
-        raise RuntimeError(
-            "primary edit left the native logits unchanged; hooks did not fire"
-        )
-    return arms, verdict
-
-
-def build_receipt(
-    adapter: GlimmerAdapter,
-    glue: Glue,
+def provenance(
     identity: dict[str, Any],
+    args: argparse.Namespace,
+    lens: JacobianLens | None,
+    run_kind: str = "real_model",
+    model_role: str = "glimmer_target",
+) -> ReceiptProvenance:
+    return ReceiptProvenance(
+        model_identity={k: v for k, v in identity.items() if k != "load_report"},
+        code=code_record(args),
+        score_definition=SCORE_DEFINITION,
+        run_kind=run_kind,
+        model_role=model_role,
+        lens=lens_record(args, lens),
+        actual_output_scores="native bf16 forward logits",
+    )
+
+
+def prompt_attack(
+    adapter: GlimmerAdapter,
+    glue: Glue,
     key: str,
     lens: JacobianLens | None,
     args: argparse.Namespace,
     tracked: list[dict[str, Any]],
-    tracked_ids: list[int],
-    interventions: list[dict[str, Any]],
-    run_kind: str = "real_model",
-    model_role: str = "glimmer_target",
-) -> dict[str, Any]:
-    record = prompt_record(glue, key)
-    x = glue.encode(record["text"])
-    residuals = capture_residuals(adapter, x, list(range(adapter.n_layers)))
-    cells = readout_cells(
+    record: ReceiptProvenance,
+    edits: Sequence[ConceptEdit] = (),
+) -> JacobianLensAttack:
+    """The ``JacobianLensAttack`` for one named prompt (explicit BOS, fp32 head)."""
+    return JacobianLensAttack(
         adapter,
-        lens,
-        residuals,
-        positions=list(range(x.shape[1])),
-        tracked_ids=tracked_ids,
-        top_k=args.top_k,
+        prompt=LensPrompt(
+            key,
+            PROMPTS[key]["text"],
+            PROMPTS[key]["note"] + "; BOS prepended explicitly",
+        ),
+        encode_ids=glue.encode_ids,
         decode=glue.decode,
+        tracked_tokens=tracked,
+        provenance=record,
+        native_logits=adapter.native_logits,
         head=adapter.head_fp32,
+        lens=lens,
+        bos_id=glue.bos_id,
+        device=adapter.device,
+        top_k=args.top_k,
+        max_new_tokens=args.max_new_tokens,
+        stop_ids=STOP_IDS,
+        concept_edits=edits,
     )
-    greedy, first = greedy_continuation(
-        adapter.native_logits, x, max_new_tokens=args.max_new_tokens, stop_ids=STOP_IDS
-    )
-    top, tracked_scores = rank_scores(first, tracked_ids, args.top_k, glue.decode)
-    unavailable = (
-        []
-        if lens
-        else [{"scope": "jlens", "reason": "no fitted lens supplied to this run"}]
-    )
-    receipt = {
-        "schema_version": "privacyguard.jlens_preview/v1",
-        "run_kind": run_kind,
-        "model_role": model_role,
-        "created_utc": datetime.datetime.now(datetime.timezone.utc).isoformat(),
-        "prompt": record,
-        "model_identity": {k: v for k, v in identity.items() if k != "load_report"},
-        "code": code_record(args),
-        "num_layers": adapter.n_layers,
-        "vocab_size": adapter.vocab_size,
-        "top_k": args.top_k,
-        "score_definition": SCORE_DEFINITION,
-        "tracked_tokens": tracked,
-        "cells": cells,
-        "lens": lens_record(args, lens),
-        "interventions": interventions,
-        "actual_output": {
-            "greedy_ids": greedy,
-            "greedy_text": glue.decode(greedy),
-            "max_new_tokens": args.max_new_tokens,
-            "next_token_top": top,
-            "next_token_tracked": tracked_scores,
-        },
-        "unavailable": unavailable,
-        "display": {
-            "actual_output_scores": "native bf16 forward logits",
-            "head_parity": head_parity(adapter, adapter.native_logits, x),
-        },
-    }
-    return JLensPreviewReceipt.from_dict(receipt).with_hash().to_dict()
 
 
-def run_followup(
-    adapter: GlimmerAdapter,
-    glue: Glue,
+def predeclared_edit(
     directions: dict[int, LayerDirections],
-    followup: tuple[str, str, str, str, str],
-    lens: JacobianLens | None,
-    tracked_ids: list[int],
     answers: dict[str, list[int]],
-    args: argparse.Namespace,
+    contrast_sha: str,
     band: Sequence[int] = BAND,
     downstream: Sequence[int] = DOWNSTREAM,
+    single_layers: Sequence[int] = SINGLE_LAYERS,
+) -> ConceptEdit:
+    """The predeclared spider -> ant arms judged by :data:`SUCCESS_RULE`."""
+    return ConceptEdit(
+        concept_from="spider",
+        concept_to="ant",
+        from_answer="8",
+        to_answer="6",
+        directions=directions,
+        arms=predeclared_arms(band, single_layers, STRENGTHS),
+        answer_forms=answers,
+        contrast_set_sha256=contrast_sha,
+        downstream_layers=downstream,
+    )
+
+
+def followup_edit(
+    directions: dict[int, LayerDirections],
+    followup: tuple[str, str, str, str, str],
+    answers: dict[str, list[int]],
+    contrast_sha: str,
+    band: Sequence[int] = BAND,
+    downstream: Sequence[int] = DOWNSTREAM,
+) -> ConceptEdit:
+    """One post-primary follow-up: a (from, to) clamp with its controls."""
+    _, concept_from, concept_to, from_answer, to_answer = followup
+    return ConceptEdit(
+        concept_from=concept_from,
+        concept_to=concept_to,
+        from_answer=from_answer,
+        to_answer=to_answer,
+        directions=directions,
+        arms=followup_arms(band, f"{concept_from}_to_{concept_to}_post"),
+        answer_forms=answers,
+        contrast_set_sha256=contrast_sha,
+        downstream_layers=downstream,
+        note="post-primary follow-up; ",
+    )
+
+
+def followup_record(
+    adapter: GlimmerAdapter,
+    key: str,
+    result: EditResult,
+    lens: JacobianLens | None,
+    band: Sequence[int] = BAND,
 ) -> dict[str, Any]:
-    """One post-primary follow-up: a (prompt, from, to) clamp with its controls."""
-    key, concept_from, concept_to, from_answer, to_answer = followup
-    x = glue.encode(PROMPTS[key]["text"])
-    clean = capture_residuals(adapter, x, list(range(adapter.n_layers)))
-    tag = f"{concept_from}_to_{concept_to}_post"
-    arms = run_arms(
-        adapter,
-        adapter.native_logits,
-        x,
-        followup_arms(band, tag),
-        directions,
-        clean,
-        **_arm_kwargs(adapter, glue, lens, tracked_ids, answers, args, downstream),
-    )
-
-    def flip(summary: dict[str, Any] | None) -> bool | None:
-        if summary is None:
-            return None
-        return summary[to_answer]["best_rank"] < summary[from_answer]["best_rank"]
-
-    flips = {
-        a["name"]: {
-            "next_token_flip": flip(a["answers"]),
-            "flip_after_whitespace": flip(a["answers_after_whitespace"]),
-            "greedy_answer": a["greedy_answer"],
-            "p_from": a["answers"][from_answer]["group_prob"],
-            "p_to": a["answers"][to_answer]["group_prob"],
-        }
-        for a in arms
-    }
-    leakage = answer_leakage(
-        adapter, directions, answers[from_answer], answers[to_answer], band, lens
-    )
+    edit = result.edit
     return {
         "prompt": key,
-        "concept_from": concept_from,
-        "concept_to": concept_to,
-        "from_answer": from_answer,
-        "to_answer": to_answer,
-        "arms": arms,
-        "summary": flips,
-        "answer_leakage_cosine": leakage,
+        "concept_from": edit.concept_from,
+        "concept_to": edit.concept_to,
+        "from_answer": edit.from_answer,
+        "to_answer": edit.to_answer,
+        "arms": result.arms,
+        "summary": result.flips,
+        "answer_leakage_cosine": answer_leakage(
+            adapter,
+            dict(edit.directions),
+            list(edit.answer_forms[edit.from_answer]),
+            list(edit.answer_forms[edit.to_answer]),
+            band,
+            lens,
+        ),
     }
-
-
-def _causal_prompt(
-    adapter: GlimmerAdapter,
-    glue: Glue,
-    key: str,
-    lens: JacobianLens | None,
-    directions: dict[int, LayerDirections],
-    tracked_ids: list[int],
-    answers: dict[str, list[int]],
-    args: argparse.Namespace,
-    contrast_sha: str,
-) -> tuple[list[dict[str, Any]], dict[str, Any]]:
-    arms, verdict = run_causal(
-        adapter,
-        glue,
-        glue.encode(PROMPTS[key]["text"]),
-        lens,
-        directions,
-        tracked_ids,
-        answers,
-        args,
-    )
-    logger.info("causal %s: %s", key, verdict)
-    outcome = "POSITIVE" if verdict["success"] else "NEGATIVE"
-    banner = (
-        f"SUCCESS_RULE (predeclared primary): {outcome}; answer flipped "
-        f"{verdict['primary_answer_flipped']}, downstream representation moved "
-        f"{verdict['representation_moved']}, controls keep baseline "
-        f"{verdict['controls_keep_baseline']}; "
-    )
-    runs = [
-        intervention_run(a, contrast_sha, note=banner if a["primary"] else "")
-        for a in arms
-    ]
-    return runs, {"arms": arms, "assessment": verdict}
 
 
 def cmd_run(
@@ -977,11 +831,18 @@ def cmd_run(
     args: argparse.Namespace,
 ) -> None:
     lens = JacobianLens.load(args.lens) if args.lens else None
-    tracked, tracked_ids, answers, surfaces = tracked_tokens(glue)
+    tracked, _, answers, surfaces = tracked_tokens(glue)
     if args.followups and not args.causal:
         raise ValueError("--followups needs --causal")
     means, contrast = build_means(adapter, glue) if args.causal else ({}, {})
-    directions = directions_for(means, "spider", "ant", args) if args.causal else {}
+    sha = str(contrast.get("templates_sha256", ""))
+    pairs: dict[tuple[str, str], dict[int, LayerDirections]] = {}
+
+    def directions(pair: tuple[str, str]) -> dict[int, LayerDirections]:
+        if pair not in pairs:
+            pairs[pair] = directions_for(means, *pair, args)
+        return pairs[pair]
+
     experiment: dict[str, Any] = {
         "schema": "privacyguard.jlens_causal/v1",
         "run_kind": "real_model",
@@ -998,53 +859,37 @@ def cmd_run(
         "prompts": {},
         "followups": [],
     }
-    runs: dict[str, list[dict[str, Any]]] = {key: [] for key in args.prompts}
-    for key in args.prompts:
+    record = provenance(identity, args, lens)
+    receipts = []
+    keys = [*args.prompts, *(f[0] for f in FOLLOWUPS if args.followups)]
+    for key in dict.fromkeys(keys):
+        edits = []
         if args.causal and key in PREDECLARED_CAUSAL_PROMPTS:
-            runs[key], experiment["prompts"][key] = _causal_prompt(
-                adapter,
-                glue,
-                key,
-                lens,
-                directions,
-                tracked_ids,
-                answers,
-                args,
-                contrast["templates_sha256"],
-            )
-    pairs: dict[tuple[str, str], dict[int, LayerDirections]] = {
-        ("spider", "ant"): directions
-    }
-    for followup in FOLLOWUPS if args.followups else ():
-        pair = (followup[1], followup[2])
-        if pair not in pairs:
-            pairs[pair] = directions_for(means, *pair, args)
-        result = run_followup(
-            adapter, glue, pairs[pair], followup, lens, tracked_ids, answers, args
-        )
-        experiment["followups"].append(result)
-        logger.info("followup %s: %s", followup, result["summary"])
-        if result["prompt"] not in experiment["prompts"]:
-            # A receipt's interventions must include its predeclared primary
-            # arm; follow-ups on other prompts stay in the experiment record.
-            continue
-        runs[result["prompt"]].extend(
-            intervention_run(
-                a,
-                contrast["templates_sha256"],
-                result["concept_from"],
-                result["concept_to"],
-                "post-primary follow-up; ",
-            )
-            for a in result["arms"]
-            if a["kind"] != "baseline"
-        )
-    receipts = [
-        build_receipt(
-            adapter, glue, identity, key, lens, args, tracked, tracked_ids, arms
-        )
-        for key, arms in runs.items()
-    ]
+            edits.append(predeclared_edit(directions(("spider", "ant")), answers, sha))
+        followups = [f for f in FOLLOWUPS if args.followups and f[0] == key]
+        edits += [
+            followup_edit(directions((f[1], f[2])), f, answers, sha) for f in followups
+        ]
+        attack = prompt_attack(adapter, glue, key, lens, args, tracked, record, edits)
+        receipts.append(attack.run_attack().receipt.to_dict())
+        for result in attack.edit_results:
+            if result.assessment is not None:
+                experiment["prompts"][key] = {
+                    "arms": result.arms,
+                    "assessment": result.assessment,
+                }
+                logger.info("causal %s: %s", key, result.assessment)
+            else:
+                experiment["followups"].append(
+                    followup_record(adapter, key, result, lens)
+                )
+                logger.info(
+                    "followup %s %s->%s: %s",
+                    key,
+                    result.edit.concept_from,
+                    result.edit.concept_to,
+                    result.flips,
+                )
     _write(args.out_dir, "jlens_preview_receipts.json", receipts)
     if args.causal:
         _write(args.out_dir, "causal_experiment.json", experiment)
