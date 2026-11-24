@@ -19,6 +19,7 @@ import torch
 import transformers
 from privacy_guard.analysis.jacobian_lens.glimmer_adapter import (
     build_identity,
+    cache_argument_name,
     GlimmerAdapter,
     sha256_file,
 )
@@ -29,6 +30,7 @@ from privacy_guard.analysis.jacobian_lens.model_numerics import (
     head_parity,
     resume_parity,
 )
+from transformers.masking_utils import create_causal_mask
 
 try:
     from privacy_guard.analysis.jacobian_lens import glimmer_loading
@@ -120,6 +122,16 @@ class GlimmerAdapterTest(unittest.TestCase):
                 torch.equal(adapter.unembed(final[:1]), adapter.native_logits(ids))
             )
             self.assertEqual(adapter.encode("ab").shape[0], 1)
+        with self.subTest("cache_argument_name"):
+            self.assertIn(
+                cache_argument_name(create_causal_mask), ("past_key_values", "cache")
+            )
+
+            def renamed(config: object, cache: object = None) -> None:
+                return None
+
+            self.assertEqual(cache_argument_name(renamed), "cache")
+            self.assertIsNone(cache_argument_name(lambda config: None))
         with self.subTest("rejects_multimodal_tokens"):
             with self.assertRaises(ValueError):
                 adapter.embed(torch.tensor([[5, 120]]))

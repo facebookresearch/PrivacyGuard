@@ -25,6 +25,7 @@ through every block, so one backward pass yields derivatives with respect to
 every captured residual without detaching intermediate activations.
 """
 
+import functools
 import hashlib
 import inspect
 import logging
@@ -110,6 +111,19 @@ def hash_checkpoint_dir(checkpoint_dir: str) -> dict[str, str]:
     if not names:
         raise FileNotFoundError(f"no .safetensors files in {checkpoint_dir}")
     return {name: sha256_file(os.path.join(checkpoint_dir, name)) for name in names}
+
+
+@functools.cache
+def cache_argument_name(function: Callable[..., object]) -> str | None:
+    """Name of the KV-cache parameter of a transformers mask builder.
+
+    transformers 5.19 requires ``past_key_values``; later releases rename it.
+    """
+    parameters = inspect.signature(function).parameters
+    for name in ("past_key_values", "cache"):
+        if name in parameters:
+            return name
+    return None
 
 
 def child_module(module: nn.Module, *names: str) -> nn.Module:
@@ -239,13 +253,15 @@ class GlimmerAdapter:
     ) -> tuple[dict[str, Any], Any, torch.Tensor]:
         seq_len = embeddings.shape[1]
         position_ids = torch.arange(seq_len, device=embeddings.device).unsqueeze(0)
-        mask_kwargs = {
+        mask_kwargs: dict[str, Any] = {
             "config": self.text_config,
             "inputs_embeds": embeddings,
             "attention_mask": None,
-            "past_key_values": None,
             "position_ids": position_ids,
         }
+        cache_name = cache_argument_name(create_causal_mask)
+        if cache_name is not None:
+            mask_kwargs[cache_name] = None
         masks = {
             "full_attention": create_causal_mask(**mask_kwargs),
             "sliding_attention": create_sliding_window_causal_mask(**mask_kwargs),
@@ -272,7 +288,6 @@ class GlimmerAdapter:
                 attention_mask=masks[layer_types[index]],
                 position_embeddings=position_embeddings if rope_theta[index] else None,
                 position_ids=position_ids,
-                past_key_values=None,
             )
             if overrides is not None and index in overrides:
                 hidden = overrides[index](hidden)
