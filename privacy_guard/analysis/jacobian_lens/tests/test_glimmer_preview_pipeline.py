@@ -14,6 +14,7 @@ import json
 import os
 import tempfile
 import unittest
+from collections.abc import Sequence
 from typing import cast
 
 import torch
@@ -24,6 +25,10 @@ from privacy_guard.analysis.jacobian_lens.glimmer_adapter import (
 )
 from privacy_guard.analysis.jacobian_lens.lens_fitting import JacobianLens
 from privacy_guard.analysis.jacobian_lens.preview_schema import JLensPreviewReceipt
+from privacy_guard.attacks.jacobian_lens.jacobian_lens_attack import (
+    ConceptEdit,
+    JacobianLensAttack,
+)
 
 try:
     from transformers import MuseGlimmerConfig, MuseGlimmerForConditionalGeneration
@@ -117,30 +122,32 @@ class GlimmerPreviewPipelineTest(unittest.TestCase):
             self.glue
         )
 
-    def _receipt(
-        self, lens: JacobianLens | None, interventions: list[dict[str, object]]
-    ) -> JLensPreviewReceipt:
-        data = pipeline.build_receipt(
+    def _attack(
+        self, lens: JacobianLens | None, edits: Sequence[ConceptEdit] = ()
+    ) -> JacobianLensAttack:
+        record = pipeline.provenance(
+            IDENTITY, self.args, lens, run_kind="cpu_fixture", model_role="fixture"
+        )
+        return pipeline.prompt_attack(
             self.adapter,
             self.glue,
-            IDENTITY,
             "blog_no_period",
             lens,
             self.args,
             self.tracked,
-            self.tracked_ids,
-            interventions,
-            run_kind="cpu_fixture",
-            model_role="fixture",
+            record,
+            edits,
         )
-        return JLensPreviewReceipt.from_dict(data)
+
+    def _receipt(self, lens: JacobianLens | None) -> JLensPreviewReceipt:
+        return self._attack(lens).run_attack().receipt
 
     def test_receipts_with_and_without_lens(self) -> None:
         for token in self.tracked:
             with self.subTest(tracked=token["text"]):
                 self.assertEqual(self.glue.decode([token["token_id"]]), token["text"])
                 self.assertIn(token["text"], pipeline.TRACKED[token["concept"]])
-        bare = self._receipt(None, [])
+        bare = self._receipt(None)
         self.assertEqual(bare.prompt.token_ids[0], 1)
         self.assertTrue(
             all(c.status == "unavailable" for c in bare.cells if c.method == "jlens")
@@ -149,7 +156,7 @@ class GlimmerPreviewPipelineTest(unittest.TestCase):
         eye = {k: torch.eye(32) for k in range(3)}
         self.args.lens = os.path.join(self.tmp, "eye.pt")
         JacobianLens(eye, n_prompts=1, d_model=32).save(self.args.lens)
-        with_lens = self._receipt(JacobianLens.load(self.args.lens), [])
+        with_lens = self._receipt(JacobianLens.load(self.args.lens))
         by_key = {(c.method, c.layer, c.position): c for c in with_lens.cells}
         for (method, layer, position), cell in by_key.items():
             if method == "jlens":
@@ -168,48 +175,46 @@ class GlimmerPreviewPipelineTest(unittest.TestCase):
 
     def test_causal_arms_fill_a_valid_receipt(self) -> None:
         means, contrast = pipeline.build_means(self.adapter, self.glue)
-        directions = pipeline.directions_for(means, "spider", "ant", self.args)
         self.assertEqual(contrast["skipped"], [])
-        x = self.glue.encode(pipeline.PROMPTS["blog_no_period"]["text"])
-        arms, verdict = pipeline.run_causal(
-            self.adapter,
-            self.glue,
-            x,
-            None,
-            directions,
-            self.tracked_ids,
-            self.answers,
-            self.args,
-            band=(1, 2),
-            downstream=(3,),
-            single_layers=(1,),
-        )
-        by_name = {a["name"]: a for a in arms}
+        sha = contrast["templates_sha256"]
+        followup = ("blog_no_period", "spider", "dog", "8", "4")
+        edits = [
+            pipeline.predeclared_edit(
+                pipeline.directions_for(means, "spider", "ant", self.args),
+                self.answers,
+                sha,
+                band=(1, 2),
+                downstream=(3,),
+                single_layers=(1,),
+            ),
+            pipeline.followup_edit(
+                pipeline.directions_for(means, "spider", "dog", self.args),
+                followup,
+                self.answers,
+                sha,
+                band=(1, 2),
+                downstream=(3,),
+            ),
+        ]
+        attack = self._attack(None, edits)
+        receipt = attack.run_attack().receipt
+        primary, post = attack.edit_results
+        by_name = {a["name"]: a for a in primary.arms}
         self.assertEqual(
             by_name["noop_zero_edit"]["max_abs_logit_diff_vs_baseline"], 0.0
         )
-        self.assertTrue(verdict["hooks_effective"])
-        runs = [
-            pipeline.intervention_run(a, contrast["templates_sha256"]) for a in arms
-        ]
-        receipt = self._receipt(None, runs)
+        self.assertTrue(primary.assessment and primary.assessment["hooks_effective"])
         self.assertEqual(
             [r.name for r in receipt.interventions if r.primary], ["clamp_band_s1"]
+        )
+        self.assertIn(
+            "clamp_band_s2_spider_to_dog_post", [r.name for r in receipt.interventions]
         )
         self.assertTrue(
             os.path.exists(os.path.join(self.tmp, "directions_spider_to_ant.pt"))
         )
-        follow = pipeline.run_followup(
-            self.adapter,
-            self.glue,
-            pipeline.directions_for(means, "spider", "dog", self.args),
-            ("blog_no_period", "spider", "dog", "8", "4"),
-            None,
-            self.tracked_ids,
-            self.answers,
-            self.args,
-            band=(1, 2),
-            downstream=(3,),
+        follow = pipeline.followup_record(
+            self.adapter, "blog_no_period", post, None, band=(1, 2)
         )
         self.assertEqual(follow["concept_to"], "dog")
         self.assertIn("clamp_band_s2_spider_to_dog_post", follow["summary"])
