@@ -9,6 +9,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import argparse
 import hashlib
 import os
 import tempfile
@@ -33,9 +34,10 @@ from privacy_guard.analysis.jacobian_lens.model_numerics import (
 from transformers.masking_utils import create_causal_mask
 
 try:
-    from privacy_guard.analysis.jacobian_lens import glimmer_loading
+    from privacy_guard.analysis.jacobian_lens import glimmer_loading, glimmer_numerics
 except ImportError:  # transformers < 5.15 has no Muse Glimmer
     glimmer_loading = None
+    glimmer_numerics = None
 
 
 SEQ_LEN = 9
@@ -145,8 +147,21 @@ class GlimmerAdapterTest(unittest.TestCase):
         for layer in (0, 2, 3):
             with self.subTest(layer=layer):
                 result = gradient_checks(
-                    adapter, ids, layer, 2, SEQ_LEN - 2, eps_relative=[1e-4, 1e-3, 1e-2]
+                    adapter,
+                    ids,
+                    layer,
+                    2,
+                    SEQ_LEN - 2,
+                    eps_relative=[1e-4, 1e-3, 1e-2],
+                    causal_target_position=3,
                 )
+                with self.subTest("causality"):
+                    causality = result["causality"]
+                    self.assertEqual(causality["later_positions_tested"], SEQ_LEN - 4)
+                    self.assertEqual(causality["later_positions_grad_max_abs"], 0.0)
+                    self.assertEqual(causality["earlier_positions_tested"], 3)
+                    self.assertGreater(causality["earlier_positions_grad_norm"], 0.0)
+                    self.assertGreater(causality["target_position_grad_norm"], 0.0)
                 with self.subTest("sketch_self_comparison"):
                     receipt = {"gradient_checks": [result]}
                     rows = compare_vjp_sketches(receipt, receipt)
@@ -157,6 +172,7 @@ class GlimmerAdapterTest(unittest.TestCase):
                     check = result[name]
                     self.assertEqual(len(check["vjp_sketch"]), 16)
                     self.assertLess(check["best_relative_error"], 1e-2, msg=str(check))
+                    self.assertEqual(check["future_positions_tested"], 1)
                     self.assertEqual(check["future_positions_grad_max_abs"], 0.0)
                     self.assertLess(check["full_graph_vs_cut_graph_max_abs"], 1e-12)
                     self.assertGreater(check["grad_norm_at_source"], 0.0)
@@ -206,6 +222,44 @@ class GlimmerAdapterTest(unittest.TestCase):
             self.assertEqual(
                 glimmer_loading.checked_weight_names(5)[-1],
                 "model.language_model.layers.4.post_feedforward_layernorm.weight",
+            )
+        with self.subTest("last_token_target_reports_untested_future"):
+            result = gradient_checks(
+                adapter, _ids(), 1, 2, SEQ_LEN - 1, eps_relative=[1e-3]
+            )
+            check = result["residual_projection"]
+            self.assertEqual(check["future_positions_tested"], 0)
+            self.assertIsNone(check["future_positions_grad_max_abs"])
+            with self.assertRaises(ValueError):
+                gradient_checks(
+                    adapter,
+                    _ids(),
+                    1,
+                    2,
+                    SEQ_LEN - 1,
+                    eps_relative=[1e-3],
+                    causal_target_position=SEQ_LEN - 1,
+                )
+        with self.subTest("recorded_arguments"):
+            assert glimmer_numerics is not None
+            args = argparse.Namespace(
+                checkpoint_dir="/Users/Jane Doe/ckpt",
+                output="-vo/srv/out.json",
+                expected_sha256_json=None,
+                reference_receipt="~/ref.json",
+                device="cpu",
+                grad_layers="12,25",
+            )
+            self.assertEqual(
+                glimmer_numerics.recorded_arguments(args),
+                {
+                    "checkpoint_dir": "<path>",
+                    "device": "cpu",
+                    "expected_sha256_json": None,
+                    "grad_layers": "12,25",
+                    "output": "<path>",
+                    "reference_receipt": "<path>",
+                },
             )
         with self.subTest("profile"):
             rows = compute_profile(adapter, seq_len=6, batch_sizes=[1, 3])

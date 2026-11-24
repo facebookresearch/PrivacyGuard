@@ -185,11 +185,16 @@ def gradient_checks(
     target_position: int,
     eps_relative: Sequence[float],
     seed: int = 0,
+    causal_target_position: int | None = None,
 ) -> dict[str, Any]:
     """VJP vs finite differences for two scalars of the residual at ``layer``.
 
     The predeclared step is the median entry of ``eps_relative``; the best
-    step over the sweep is reported alongside it.
+    step over the sweep is reported alongside it. With
+    ``causal_target_position`` the gradient of ``<u, final_residual[p]>`` is
+    also taken there; under a causal mask it must be exactly zero at every
+    later position. Strictly earlier positions are reported separately from
+    ``p`` itself, which always receives gradient through the residual stream.
 
     ``residual_projection`` = <u, final_residual[target]> (the quantity a
     Jacobian lens differentiates); ``native_logit`` = softcapped logit of the
@@ -239,7 +244,40 @@ def gradient_checks(
             eps_relative,
             seed,
         )
+    if causal_target_position is not None:
+        result["causality"] = _causality_check(
+            capture.final_residual,
+            capture.residuals[layer],
+            probe,
+            causal_target_position,
+        )
     return result
+
+
+def _causality_check(
+    final: torch.Tensor,
+    residual: torch.Tensor,
+    probe: torch.Tensor,
+    target_position: int,
+) -> dict[str, Any]:
+    """Gradient of one target position against every source position."""
+    later = residual.shape[1] - target_position - 1
+    if later < 1 or target_position < 1:
+        raise ValueError(
+            "causal_target_position needs earlier and later positions to test"
+        )
+    value = (final[0, target_position].double() * probe).sum()
+    (grad,) = torch.autograd.grad(value, [residual], retain_graph=True)
+    return {
+        "causal_target_position": target_position,
+        "later_positions_tested": later,
+        "later_positions_grad_max_abs": float(
+            grad[0, target_position + 1 :].abs().max()
+        ),
+        "earlier_positions_tested": target_position,
+        "earlier_positions_grad_norm": float(grad[0, :target_position].float().norm()),
+        "target_position_grad_norm": float(grad[0, target_position].float().norm()),
+    }
 
 
 def _check_one_scalar(
@@ -282,9 +320,10 @@ def _check_one_scalar(
     return {
         "grad_norm_at_source": float(g_src.norm()),
         "vjp_sketch": [float(x) for x in sketch],
+        "future_positions_tested": int(future.shape[0]),
         "future_positions_grad_max_abs": float(future.abs().max())
         if future.numel()
-        else 0.0,
+        else None,
         "full_graph_vs_cut_graph_max_abs": _max_abs(grad, leaf_grad),
         "cut_graph_grad_norm": float(leaf_grad.float().norm()),
         "best_relative_error": min(s["relative_error"] for s in sweeps),
