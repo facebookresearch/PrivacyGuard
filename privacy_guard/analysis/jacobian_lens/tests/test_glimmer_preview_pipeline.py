@@ -290,6 +290,20 @@ class GlimmerPreviewPipelineTest(unittest.TestCase):
             self.args.lens, self.args.fit_manifest = lens_paths[0], manifest_paths[1]
             with self.assertRaises(ValueError):
                 pipeline.lens_record(self.args, JacobianLens.load(lens_paths[0]))
+        for bad in (["--shard", "2", "--num-shards", "2"], ["--num-shards", "0"]):
+            with self.subTest(shards=bad), self.assertRaises(SystemExit):
+                pipeline.parse_args(
+                    [
+                        "fit",
+                        "--checkpoint-dir",
+                        "c",
+                        "--out-dir",
+                        "o",
+                        "--private-dir",
+                        "p",
+                        *bad,
+                    ]
+                )
         args.top_k = 0
         command = pipeline.public_command(args)
         self.assertIn("--top-k 0", command)

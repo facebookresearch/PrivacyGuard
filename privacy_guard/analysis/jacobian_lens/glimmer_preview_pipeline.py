@@ -871,7 +871,9 @@ def cmd_run(
             followup_edit(directions((f[1], f[2])), f, answers, sha) for f in followups
         ]
         attack = prompt_attack(adapter, glue, key, lens, args, tracked, record, edits)
-        receipts.append(attack.run_attack().receipt.to_dict())
+        analysis_input = attack.run_attack()
+        if key in args.prompts:
+            receipts.append(analysis_input.receipt.to_dict())
         for result in attack.edit_results:
             if result.assessment is not None:
                 experiment["prompts"][key] = {
@@ -1016,7 +1018,10 @@ def parse_args(argv: Sequence[str] | None) -> argparse.Namespace:
     parser.add_argument("--num-shards", type=int, default=1)
     parser.add_argument("--shard-lenses", nargs="*", default=[])
     parser.add_argument("--shard-manifests", nargs="*", default=[])
-    return parser.parse_args(argv)
+    args = parser.parse_args(argv)
+    if not 0 <= args.shard < args.num_shards:
+        parser.error("--shard must satisfy 0 <= shard < num-shards")
+    return args
 
 
 def main(argv: Sequence[str] | None = None) -> None:
