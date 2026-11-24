@@ -22,6 +22,7 @@ renders the labeled synthetic ``cpu_fixture`` receipt instead.
 import argparse
 import json
 import logging
+import sys
 from collections.abc import Sequence
 
 from privacy_guard.analysis.jacobian_lens.preview_analysis_node import (
@@ -87,3 +88,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     for name, digest in sorted(digests.items()):
         logger.info("%s  %s", digest, name)
     return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

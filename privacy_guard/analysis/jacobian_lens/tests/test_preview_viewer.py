@@ -14,8 +14,11 @@ import hashlib
 import json
 import os
 import re
+import runpy  # @dep=//privacy_guard/analysis/jacobian_lens:preview_render
+import sys
 import tempfile
 import unittest
+from unittest import mock
 
 from privacy_guard.analysis.jacobian_lens.preview_fixture import make_fixture_receipt
 from privacy_guard.analysis.jacobian_lens.preview_schema import TokenScore
@@ -112,3 +115,19 @@ class PreviewViewerTest(unittest.TestCase):
                 self.assertEqual(len(f.read().splitlines()), 3)
             with open(os.path.join(out_dir, RECEIPTS_FILENAME)) as f:
                 self.assertEqual(len(json.load(f)), 2)
+
+        with (
+            self.subTest("python -m entry point"),
+            tempfile.TemporaryDirectory() as out_dir,
+        ):
+            argv = ["preview_render_main", "--fixture", "--out-dir", out_dir]
+            with (
+                mock.patch.object(sys, "argv", argv),
+                self.assertRaises(SystemExit) as exit_info,
+            ):
+                runpy.run_module(
+                    "privacy_guard.analysis.jacobian_lens.preview_render_main",
+                    run_name="__main__",
+                )
+            self.assertEqual(exit_info.exception.code, 0)
+            self.assertIn(HTML_FILENAME, os.listdir(out_dir))

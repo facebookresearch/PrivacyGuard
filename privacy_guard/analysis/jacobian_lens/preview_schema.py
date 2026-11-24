@@ -90,6 +90,8 @@ FORBIDDEN_KEYS: frozenset[str] = frozenset(
 # Longest purely numeric list allowed anywhere in a receipt. Token-id lists and
 # layer lists are short; a longer numeric list is most likely a dumped vector.
 MAX_NUMERIC_LIST_LEN = 512
+# A per-cell top list is a short ranked readout, never a full score vector.
+MAX_TOP_K = 100
 # Free-form metadata maps (identity, code, lens manifest, numerical receipt,
 # display settings, intervention directions) may hold at most this many numbers
 # in total, so a vector cannot be smuggled in as many short lists.
@@ -357,12 +359,14 @@ class JLensPreviewReceipt:
     @classmethod
     def from_dict(cls, data: Mapping[str, Any]) -> "JLensPreviewReceipt":
         """Parse and validate a receipt dict; raises ``ReceiptValidationError``."""
-        validate_receipt_dict(data)
         try:
+            validate_receipt_dict(data)
             receipt = cls._parse(data)
-        except (KeyError, TypeError, ValueError) as e:
+            validate_receipt(receipt)
+        except ReceiptValidationError:
+            raise
+        except (AttributeError, KeyError, TypeError, ValueError) as e:
             raise ReceiptValidationError(f"Malformed receipt: {e!r}") from e
-        validate_receipt(receipt)
         return receipt
 
     @classmethod
@@ -505,8 +509,10 @@ def _validate_identity(receipt: JLensPreviewReceipt) -> None:
         missing_lens = [k for k in REQUIRED_LENS_KEYS if k not in receipt.lens]
         if missing_lens:
             raise ReceiptValidationError(f"lens is missing {missing_lens}")
-    if receipt.num_layers <= 0 or receipt.vocab_size <= 0 or receipt.top_k <= 0:
-        raise ReceiptValidationError("num_layers, vocab_size and top_k must be > 0")
+    if receipt.num_layers <= 0 or receipt.vocab_size <= 0:
+        raise ReceiptValidationError("num_layers and vocab_size must be > 0")
+    if not 0 < receipt.top_k <= MAX_TOP_K:
+        raise ReceiptValidationError(f"top_k must be in 1..{MAX_TOP_K}")
 
 
 def _validate_pinned_hashes(identity: Mapping[str, Any]) -> None:
@@ -572,11 +578,11 @@ def _validate_cell(
     if cell.method == "jlens":
         _require_fitted_layer(receipt, cell.layer, where)
     _validate_ranked(receipt, cell.top, where, top=True)
-    _validate_ranked(receipt, cell.tracked, where)
-    if {t.token_id for t in cell.tracked} != tracked_ids:
+    if not cell.tracked and tracked_ids:
         raise ReceiptValidationError(
             f"{where}: tracked ranks must cover tracked_tokens"
         )
+    _validate_tracked_scores(receipt, cell.tracked, tracked_ids, where)
     top_ranks = {t.token_id: t.rank for t in cell.top}
     for entry in cell.tracked:
         if entry.token_id in top_ranks and top_ranks[entry.token_id] != entry.rank:
@@ -624,7 +630,7 @@ def _validate_tracked_scores(
     tracked_ids: set[int],
     where: str,
 ) -> None:
-    """Next-token tracked entries, when given, cover exactly ``tracked_tokens``."""
+    """Tracked entries, when given, cover each of ``tracked_tokens`` exactly once."""
     _validate_ranked(receipt, entries, where)
     if entries and sorted(e.token_id for e in entries) != sorted(tracked_ids):
         raise ReceiptValidationError(

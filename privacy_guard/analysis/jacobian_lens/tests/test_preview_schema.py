@@ -138,6 +138,23 @@ def _unavailable_run_with_results(d: dict[str, Any]) -> None:
     d["interventions"][2]["readout_cells"] = d["interventions"][0]["readout_cells"]
 
 
+def _null_interventions(d: dict[str, Any]) -> None:
+    d["interventions"] = None
+
+
+def _scalar_source_layers(d: dict[str, Any]) -> None:
+    d["lens"]["source_layers"] = 3
+
+
+def _full_vocab_top_k(d: dict[str, Any]) -> None:
+    d["top_k"] = 101
+
+
+def _duplicate_tracked_entry(d: dict[str, Any]) -> None:
+    cell = _first_ok_cell(d)
+    cell["tracked"][1] = dict(cell["tracked"][0], rank=cell["tracked"][0]["rank"] + 1)
+
+
 def _jlens_without_lens(d: dict[str, Any]) -> None:
     d["lens"] = None
 
@@ -211,6 +228,10 @@ class PreviewSchemaTest(unittest.TestCase):
             "duplicate run name": _duplicate_run_name,
             "reserved run name": _reserved_run_name,
             "unavailable run with results": _unavailable_run_with_results,
+            "null interventions": _null_interventions,
+            "scalar source layers": _scalar_source_layers,
+            "top_k too large": _full_vocab_top_k,
+            "duplicate tracked entry": _duplicate_tracked_entry,
             "jlens without lens": _jlens_without_lens,
             "jlens unfitted layer": _jlens_unfitted_layer,
             "chunked vector": _chunked_vector,
