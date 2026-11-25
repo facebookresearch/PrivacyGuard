@@ -83,6 +83,8 @@ table.grid td.na{background:repeating-linear-gradient(45deg,#eee,#eee 4px,#fafaf
 pre{background:#f5f6f7;padding:8px;overflow:auto;max-height:360px;font-size:12px}
 .legend span{display:inline-block;margin-right:12px;font-size:12px}
 .scroll{overflow-x:auto;max-width:100%}
+table.runs td{white-space:nowrap}
+table.runs td.wrap{white-space:normal;min-width:260px}
 </style>
 </head>
 <body>
@@ -99,7 +101,7 @@ pre{background:#f5f6f7;padding:8px;overflow:auto;max-height:360px;font-size:12px
   var WORD_RE = /^[ \\u2581\\u0120]?(?:[A-Za-z]+|[0-9]+)$/;
   var CONCEPT_COLORS = ["#d62728", "#1f77b4", "#2ca02c", "#9467bd", "#ff7f0e", "#8c564b", "#e377c2", "#17becf"];
   var METHOD_NAMES = {jlens: "J-lens", logit_lens: "Logit lens"};
-  var state = {r: 0, method: null, color: "top1", word: false, layer: null, pos: null};
+  var state = {r: 0, method: null, color: "top1", word: false, layer: null, pos: null, run: null};
   var app = document.getElementById("app");
 
   function el(tag, attrs) {
@@ -362,28 +364,73 @@ pre{background:#f5f6f7;padding:8px;overflow:auto;max-height:360px;font-size:12px
     return out.join(",");
   }
 
+  function directionText(d) {
+    if (!d) { return ""; }
+    var text = (d.concept_from || "?") + " \u2192 " + (d.concept_to || "?");
+    Object.keys(d).sort().forEach(function (k) {
+      if (["concept_from", "concept_to", "contrast_set_sha256"].indexOf(k) < 0 && d[k] !== null && d[k] !== undefined) {
+        text += " | " + k + ": " + (typeof d[k] === "object" ? JSON.stringify(d[k]) : d[k]);
+      }
+    });
+    return text;
+  }
+
+  function primaryOutcome(margins) {
+    var r = R(), primary = r.interventions.filter(function (run) { return run.primary; })[0];
+    if (!primary) { return el("div", {class: "muted"}, "no predeclared primary arm in this receipt"); }
+    var m = margins[primary.name], base = margins.actual_output;
+    var text = "Predeclared primary arm " + primary.name + " (" + primary.method_label + ", layers " + compactRange(primary.layers) +
+      ", strength " + (primary.strength === null ? "n/a" : primary.strength) + "): " + primary.status;
+    if (m && base) {
+      text += "; answer margin " + m.preferred_concept + " - " + m.reference_concept + " = " + m.margin.toFixed(4) +
+        " vs " + base.margin.toFixed(4) + " for the actual output; best " + m.preferred_concept + " rank " + m.preferred_rank +
+        ", best " + m.reference_concept + " rank " + m.reference_rank;
+    }
+    if (primary.greedy_text != null) { text += "; greedy " + JSON.stringify(primary.greedy_text); }
+    var box = el("div", {class: "label"}, text);
+    if (primary.notes) { box.append(el("div", {}, primary.notes)); }
+    box.append(el("div", {class: "muted"}, "Other intervention arms are exploratory; compare each with its matched-norm controls at the same strength."));
+    return box;
+  }
+
   function interventions() {
     var r = R(), box = el("div", {}, el("h2", {}, "Interventions and controls"));
     if (!r.interventions.length) { box.append(el("div", {class: "muted"}, "none in this receipt")); return box; }
     var margins = {};
     S().answer_margins.forEach(function (m) { margins[m.name] = m; });
+    box.append(primaryOutcome(margins));
     var head = el("tr");
-    ["name", "kind", "primary", "method", "layers", "positions", "strength", "delta norm", "direction", "next-token top-5", "answer margin", "greedy text", "status"].forEach(function (h) { head.append(el("th", {}, h)); });
-    var t = el("table", {}, head);
+    ["name", "kind", "primary", "method", "layers", "positions", "strength", "delta norm", "direction", "next-token top-5", "answer margin", "greedy text", "status", "notes"].forEach(function (h) { head.append(el("th", {}, h)); });
+    var t = el("table", {class: "runs"}, head);
     r.interventions.forEach(function (run) {
       var m = margins[run.name];
       t.append(el("tr", {},
         el("td", {}, run.name), el("td", {}, run.kind), el("td", {}, run.primary ? "primary (predeclared)" : ""), el("td", {}, run.method_label),
         el("td", {}, compactRange(run.layers)), el("td", {}, compactRange(run.positions)),
-        el("td", {}, run.strength === null ? "" : run.strength), el("td", {}, run.delta_norm === null ? "" : run.delta_norm),
-        el("td", {class: "mono"}, run.direction ? JSON.stringify(run.direction) : ""),
+        el("td", {}, run.strength === null ? "" : run.strength), el("td", {}, run.delta_norm == null ? "" : run.delta_norm.toPrecision(4)),
+        el("td", {class: "mono", title: run.direction ? JSON.stringify(run.direction) : ""}, directionText(run.direction)),
         el("td", {class: "mono"}, run.next_token_top.slice(0, 5).map(function (e) { return vis(e.text) + "#" + e.rank; }).join(" ")),
         el("td", {}, m ? m.preferred_concept + " - " + m.reference_concept + " = " + m.margin.toFixed(4) : ""),
         el("td", {class: "mono"}, run.greedy_text === null ? "" : JSON.stringify(run.greedy_text)),
-        el("td", {}, run.status + (run.unavailable_reason ? ": " + run.unavailable_reason : ""))));
+        el("td", {}, run.status + (run.unavailable_reason ? ": " + run.unavailable_reason : "")),
+        el("td", {class: "wrap"}, run.notes === null ? "" : run.notes)));
     });
     box.append(el("div", {class: "scroll"}, t));
-    S().intervention_readouts.forEach(function (ir) {
+    var readouts = S().intervention_readouts;
+    if (!readouts.length) { return box; }
+    var names = readouts.map(function (ir) { return ir.name; });
+    if (names.indexOf(state.run) < 0) {
+      var primary = r.interventions.filter(function (run) { return run.primary; })[0];
+      state.run = primary && names.indexOf(primary.name) >= 0 ? primary.name : names[0];
+    }
+    var rs = el("select", {onchange: function (e) { state.run = e.target.value; render(); }});
+    names.forEach(function (n) {
+      var o = el("option", {value: n}, n);
+      if (n === state.run) { o.selected = true; }
+      rs.append(o);
+    });
+    box.append(el("div", {class: "controls"}, el("label", {}, "Representation readout of run ", rs)));
+    readouts.filter(function (ir) { return ir.name === state.run; }).forEach(function (ir) {
       box.append(el("h3", {}, "Representation readout after " + ir.name + " (" + ir.kind + ")"));
       var rt = el("table", {}, el("tr", {}, el("th", {}, "method"), el("th", {}, "layer"), el("th", {}, "position"), el("th", {}, "concept"), el("th", {}, "unpatched rank"), el("th", {}, "patched rank")));
       ir.rank_changes.forEach(function (c) {
@@ -414,6 +461,7 @@ pre{background:#f5f6f7;padding:8px;overflow:auto;max-height:360px;font-size:12px
     var ls = layers();
     state.layer = ls.length ? ls[ls.length - 1] : 0;
     state.pos = r.prompt.token_ids.length - 1;
+    state.run = null;
   }
 
   function render() {
@@ -436,6 +484,7 @@ pre{background:#f5f6f7;padding:8px;overflow:auto;max-height:360px;font-size:12px
     if (params.word === "1") { state.word = true; }
     if (params.layer !== undefined && isFinite(Number(params.layer))) { state.layer = Number(params.layer); }
     if (params.pos !== undefined && isFinite(Number(params.pos))) { state.pos = Number(params.pos); }
+    if (params.run) { state.run = params.run; }
   }
 
   applyHash();
