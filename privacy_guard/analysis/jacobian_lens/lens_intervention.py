@@ -314,7 +314,9 @@ def _decoded_rows(
             rows.append(h.float())
     if not rows:
         return {}
-    scores = head(torch.stack(rows)).float()
+    # Under a multi-GPU device map each block's residual lives on its own device.
+    device = rows[0].device
+    scores = head(torch.stack([r.to(device) for r in rows])).float()
     return {key: scores[i] for i, key in enumerate(keys)}
 
 
